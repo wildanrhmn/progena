@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
 /// @title IAgentGenome
 /// @notice INFT registry interface for Progena agents.
 /// @dev Each token is an autonomous agent. Its `rootHash` points to an
@@ -8,7 +10,7 @@ pragma solidity ^0.8.28;
 ///      Bred agents are minted with a placeholder root hash; the real
 ///      hash is set later by the off-chain genome writer once the
 ///      workspace has been computed and uploaded.
-interface IAgentGenome {
+interface IAgentGenome is IERC721 {
     /// @notice Snapshot of an agent's lineage and storage pointer.
     /// @param rootHash       0G Storage root hash of the encrypted genome bundle.
     ///                       `bytes32(0)` until the genome is finalized.
