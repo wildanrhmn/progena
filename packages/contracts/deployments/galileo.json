@@ -1,0 +1,26 @@
+{
+  "network": "0G-Galileo-Testnet",
+  "chainId": 16602,
+  "rpc": "https://evmrpc-testnet.0g.ai",
+  "explorer": "https://chainscan-galileo.0g.ai",
+  "deployer": "0x2F674EE3F4789208F3cd9cb5EA607B8ac2Da8Acf",
+  "contracts": {
+    "AgentGenome": "0xCe2AA403276D01919295823237123C0ac47A24e2",
+    "ReputationOracle": "0xc6FC73bAC27f49b504DD267908A51F438f6Ab3ea",
+    "RoyaltySplitter": "0xB95865FBde4385c607EF95f768DE76f44cf42efA",
+    "BreedingContract": "0x85985eDe5884C64fBf8daB26141ab2505eccadaf",
+    "PredictionRound": "0x54597AC54FCa99463B54bc85BA453111811C9BB7"
+  },
+  "params": {
+    "baseURI": "https://api.progena.xyz/agent/",
+    "levelShareBps": 5000,
+    "maxDepth": 4,
+    "initialOwner": "0x2F674EE3F4789208F3cd9cb5EA607B8ac2Da8Acf",
+    "genomeWriter": "0x2F674EE3F4789208F3cd9cb5EA607B8ac2Da8Acf"
+  },
+  "wirings": {
+    "AgentGenome.breedingContract": "0x85985eDe5884C64fBf8daB26141ab2505eccadaf",
+    "AgentGenome.genomeWriter": "0x2F674EE3F4789208F3cd9cb5EA607B8ac2Da8Acf",
+    "ReputationOracle.reporter": "0x54597AC54FCa99463B54bc85BA453111811C9BB7"
+  }
+}

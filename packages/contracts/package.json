@@ -8,7 +8,9 @@
   "scripts": {
     "build": "hardhat compile",
     "test": "hardhat test",
-    "clean": "hardhat clean"
+    "clean": "hardhat clean",
+    "deploy:galileo": "hardhat ignition deploy ignition/modules/Progena.ts --network galileo",
+    "deploy:mainnet": "hardhat ignition deploy ignition/modules/Progena.ts --network mainnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^4.0.0",
