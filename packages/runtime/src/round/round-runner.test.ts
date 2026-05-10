@@ -50,6 +50,9 @@ class FakeRoundChain implements RoundChain {
   async ownerOf(agentId: bigint): Promise<Address> {
     return this.owners.get(agentId) ?? ALICE;
   }
+  async entryFeeOf(_roundId: bigint): Promise<bigint> {
+    return 0n;
+  }
   async commitPrediction(roundId: bigint, agentId: bigint, commitHash: Hex): Promise<Hex> {
     this.commits.push({ roundId, agentId, commitHash });
     return TX_C;

@@ -10,7 +10,13 @@ import {
 export interface RoundChain {
   rootHashOf(agentId: bigint): Promise<RootHash>;
   ownerOf(agentId: bigint): Promise<Address>;
-  commitPrediction(roundId: bigint, agentId: bigint, commitHash: Hex): Promise<Hex>;
+  entryFeeOf(roundId: bigint): Promise<bigint>;
+  commitPrediction(
+    roundId: bigint,
+    agentId: bigint,
+    commitHash: Hex,
+    value?: bigint
+  ): Promise<Hex>;
   revealPrediction(
     roundId: bigint,
     agentId: bigint,
@@ -54,10 +60,11 @@ export function createRoundChain(opts: CreateRoundChainOptions): RoundChain {
       return (await ag.read.ownerOf([agentId])) as Address;
     },
 
-    async commitPrediction(roundId, agentId, commitHash) {
+    async commitPrediction(roundId, agentId, commitHash, value) {
+      const tx = txOpts();
       const txHash = (await round.write.commitPrediction(
         [roundId, agentId, commitHash],
-        txOpts()
+        { ...tx, value: value ?? 0n }
       )) as Hex;
       await opts.publicClient.waitForTransactionReceipt({
         hash: txHash,
@@ -65,6 +72,11 @@ export function createRoundChain(opts: CreateRoundChainOptions): RoundChain {
         retryCount: 30,
       });
       return txHash;
+    },
+
+    async entryFeeOf(roundId) {
+      const data = (await round.read.roundOf([roundId])) as { entryFee: bigint };
+      return data.entryFee;
     },
 
     async revealPrediction(roundId, agentId, prediction, nonce) {

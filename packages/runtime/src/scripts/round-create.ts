@@ -12,13 +12,14 @@ import { privateKeyToAccount } from "viem/accounts";
 import { predictionRoundAbi, zgGalileo, zgMainnet } from "@progena/sdk";
 import { loadConfig } from "../config.js";
 import { createLogger } from "../lib/logger.js";
-import { intArg, requiredArg } from "./args.js";
+import { arg, intArg, requiredArg } from "./args.js";
 import { recordRound } from "./round-store.js";
 
 async function main(): Promise<void> {
   const question = requiredArg("question");
   const commitMins = intArg("commit-mins", 60);
   const revealMins = intArg("reveal-mins", 60);
+  const entryFeeWei = arg("entry-fee-wei") ? BigInt(arg("entry-fee-wei")!) : 0n;
   const storePath = join(process.cwd(), "state", "rounds.json");
 
   const config = loadConfig();
@@ -47,10 +48,11 @@ async function main(): Promise<void> {
     question,
     commitDeadline: Number(commitDeadline),
     revealDeadline: Number(revealDeadline),
+    entryFeeWei: String(entryFeeWei),
   });
 
   const txHash = (await round.write.createRound(
-    [questionHash, commitDeadline, revealDeadline],
+    [questionHash, commitDeadline, revealDeadline, entryFeeWei],
     { account, chain }
   )) as Hex;
   await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 120_000, retryCount: 30 });

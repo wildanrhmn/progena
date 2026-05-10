@@ -61,11 +61,13 @@ export class RoundRunner {
     const nonce = generateNonce();
     const commitHash = buildCommitHash(roundId, agentId, prediction, nonce);
 
-    log?.info("submitting commit", { prediction, commitHash });
+    const entryFee = await this.opts.chain.entryFeeOf(roundId);
+    log?.info("submitting commit", { prediction, commitHash, entryFee: String(entryFee) });
     const commitTxHash = await this.opts.chain.commitPrediction(
       roundId,
       agentId,
-      commitHash
+      commitHash,
+      entryFee
     );
 
     const stored: StoredCommitment = {

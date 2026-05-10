@@ -9,7 +9,7 @@
     "ReputationOracle": "0xc6FC73bAC27f49b504DD267908A51F438f6Ab3ea",
     "RoyaltySplitter": "0xB95865FBde4385c607EF95f768DE76f44cf42efA",
     "BreedingContract": "0x85985eDe5884C64fBf8daB26141ab2505eccadaf",
-    "PredictionRound": "0x54597AC54FCa99463B54bc85BA453111811C9BB7"
+    "PredictionRound": "0x17e111593242AC706509D7e9EB676A5602277Df4"
   },
   "params": {
     "baseURI": "https://api.progena.xyz/agent/",
