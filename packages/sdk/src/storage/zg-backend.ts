@@ -1,4 +1,4 @@
-import { Indexer, MemData } from "@0glabs/0g-ts-sdk";
+import { Indexer, MemData, defaultUploadOption } from "@0gfoundation/0g-ts-sdk";
 import { JsonRpcProvider, Wallet } from "ethers";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -28,18 +28,18 @@ export function createZgStorageBackend(opts: ZgStorageOptions): StorageBackend {
         data as never,
         opts.rpcUrl,
         signer as never,
-        {
-          tags: "0x",
-          finalityRequired: true,
-          taskSize: 1,
-          expectedReplica,
-          skipTx: false,
-          fee: 0n,
-          nonce: 0n,
-        }
+        { ...defaultUploadOption, expectedReplica }
       );
       if (err) throw err;
       if (!result) throw new Error("ZgStorage: upload returned no result");
+      if ("rootHashes" in result) {
+        const firstRoot = result.rootHashes[0];
+        const firstTx = result.txHashes[0];
+        if (!firstRoot || !firstTx) {
+          throw new Error("ZgStorage: fragmented upload returned empty arrays");
+        }
+        return { rootHash: firstRoot as RootHash, txHash: firstTx as Hex };
+      }
       return {
         rootHash: result.rootHash as RootHash,
         txHash: result.txHash as Hex,

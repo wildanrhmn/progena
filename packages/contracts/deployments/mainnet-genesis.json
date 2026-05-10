@@ -1,0 +1,28 @@
+{
+  "network": "0G Mainnet",
+  "chainId": 16661,
+  "agentGenome": "0xCe2AA403276D01919295823237123C0ac47A24e2",
+  "owner": "0x2F674EE3F4789208F3cd9cb5EA607B8ac2Da8Acf",
+  "agents": [
+    {
+      "tokenId": 1,
+      "name": "Alpha",
+      "rootHash": "0x79072232b3250fd7c6065dcbc422aca938979de79f02d577f9fb7688668cf5ff"
+    },
+    {
+      "tokenId": 2,
+      "name": "Beta",
+      "rootHash": "0x258dba99535e61140c0702074441569c8182aa634ba4d2c1c66cb5d5fee2b3f4"
+    },
+    {
+      "tokenId": 3,
+      "name": "Gamma",
+      "rootHash": "0xd6422c826b7828bb5c1ba3f3b4d2e57e417506c49a4194a21bb719963dcdc4c1"
+    },
+    {
+      "tokenId": 4,
+      "name": "Delta",
+      "rootHash": "0x65a3563cd3ecd172561d6581c4e83456e2812aff56fcd812973cea79fd440739"
+    }
+  ]
+}

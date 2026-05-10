@@ -1,0 +1,40 @@
+{
+  "network": "0G-Galileo-Testnet",
+  "chainId": 16602,
+  "agentGenome": "0xCe2AA403276D01919295823237123C0ac47A24e2",
+  "owner": "0x2F674EE3F4789208F3cd9cb5EA607B8ac2Da8Acf",
+  "agents": [
+    {
+      "tokenId": 1,
+      "name": "Alpha",
+      "rootHash": "0xc090dc4d7bd1e83e5a3219c48eea259b33f5d3d8cd0c4fe8c05945ec86c5d6ca",
+      "contentHash": "0x3ea618b97ce59db730cf9a10eb1d76c8d3346ec1bf3b59e29db6f645c491fd46",
+      "storageTxHash": "0x53d288609b9c6389d4aad6fc77672367e25c945425a130bab06877c4c8fcc530",
+      "mintTxHash": "0x92ef813f1d4db6072c88474aafd8fbd8b91f666a660e4f2d240dcce56d154794"
+    },
+    {
+      "tokenId": 2,
+      "name": "Beta",
+      "rootHash": "0xad90150e73accb81d8367be3d6ee80738433984ee5f714ff71a5616cecd2185a",
+      "contentHash": "0x504b726bbdfdc4dcb1d3119ebd8c009e0372d94ddf8acbc12aa0f0c59f1904dd",
+      "storageTxHash": "0x379655ee8ef73032287951a9a04eb7d6a391c502ac601ada583e119558964aa7",
+      "mintTxHash": "0x311213283386ecaa193cebe8fbd77dda382fbacba51d8c0434e1e09d9448e3fb"
+    },
+    {
+      "tokenId": 3,
+      "name": "Gamma",
+      "rootHash": "0xff03e05188bf9c38984c13d407de5bf70f164ae138d8cb588b8977804842f5fa",
+      "contentHash": "0x18a4c9d2d30b4ab1b31c2b5ecd6fe5c626bd3e6871775e54458283a9a86fa4e7",
+      "storageTxHash": "0x70f9113a38697f90d658efc50e2f07452798ad8b9acadaaee88aecdacaa7c488",
+      "mintTxHash": "0x23ed549448733b683e5197c2b116ed5b0330cb23919ba03c15d96529d26e4b6f"
+    },
+    {
+      "tokenId": 4,
+      "name": "Delta",
+      "rootHash": "0x9b511de6c87489e09001797dcf3205466bcc5d0f6833ebe705bfb8c490a7c38b",
+      "contentHash": "0xe6628bd79fd61449cc6f2005d0d1840959e7eb63922426aa145d1beadad536d7",
+      "storageTxHash": "0x49fdc9276d1f4677623320cbbbfa651c39b06bdd89954efadc0b197f210042dd",
+      "mintTxHash": "0xe9d6e4c74378d42dbaf2419ddbf02bccad43db2be50a8ec53cf4910bd9963da7"
+    }
+  ]
+}
