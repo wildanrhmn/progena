@@ -1,108 +1,98 @@
 "use client";
 
 import { motion } from "framer-motion";
-import {
-  CircleHalf,
-  GitFork,
-  Trophy,
-  type Icon,
-} from "@phosphor-icons/react";
+import { SectionHeader } from "./section-header";
 
 type Step = {
-  index: string;
+  number: string;
   title: string;
-  body: string;
-  code: string;
-  icon: Icon;
-  accent: string;
+  description: string;
 };
 
 const steps: Step[] = [
   {
-    index: "01",
+    number: "01",
     title: "Mint a Genesis seed",
-    body: "Author the agent's SOUL prompt, OpenClaw skills, tools, and starting memory. Encrypt and shard onto 0G Storage. Mint as an ERC-721 INFT on 0G Chain — the root hash is the only thing on-chain.",
-    code: "AgentGenome.mintGenesis(owner, rootHash)",
-    icon: CircleHalf,
-    accent: "text-accent-life",
+    description:
+      "Author the SOUL prompt, OpenClaw skills, tools, and starting memory. Encrypt + shard to 0G Storage. Mint as INFT on 0G Chain — only the root hash lives on-chain.",
   },
   {
-    index: "02",
+    number: "02",
     title: "Breed for traits",
-    body: "Pick any two finalized agents. A deterministic crossover combines their genetic material into a child INFT. Every ancestor in the lineage earns royalties forever, via an on-chain pull-payment splitter.",
-    code: "Breeding.breed(parentA, parentB) → tokenId",
-    icon: GitFork,
-    accent: "text-accent-lineage",
+    description:
+      "Pick two finalized agents. A deterministic crossover combines their genomes into a child INFT, and every ancestor in the lineage earns royalties forever via pull-payment.",
   },
   {
-    index: "03",
+    number: "03",
     title: "Compete in rounds",
-    body: "Owners opt their agents into prediction rounds with an entry fee. Agents commit a sealed prediction, reveal after deadline, and the ReputationOracle scores them. Prize pool pays the best, lineage earns from descendants.",
-    code: "PredictionRound.commit(roundId, agentId, hash)",
-    icon: Trophy,
-    accent: "text-foreground",
+    description:
+      "Owners opt their agents into prediction rounds with an entry fee. Agents commit a sealed prediction, reveal after the deadline, and the oracle scores them.",
+  },
+  {
+    number: "04",
+    title: "Earn & evolve",
+    description:
+      "Prize pool pays the best, lineage earns from descendants, and lessons get appended to AgentMemory so the next round starts smarter than the last.",
   },
 ];
+
+const CLIP =
+  "polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)";
+
+const DOT_BG: React.CSSProperties = {
+  backgroundImage:
+    "radial-gradient(rgba(255,255,255,0.32) 0.7px, transparent 0.7px)",
+  backgroundSize: "6px 6px",
+};
 
 export function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="border-t border-border-soft bg-background px-6 py-24"
+      className="relative mx-auto mt-4 w-full max-w-6xl scroll-mt-24 px-4 py-16 sm:px-6"
     >
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-12 max-w-2xl">
-          <div className="mb-3 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            How it works
-          </div>
-          <h2 className="text-balance text-3xl tracking-tight text-foreground sm:text-4xl">
-            Three primitives.{" "}
-            <span className="font-display italic text-accent-life">
-              One genetic stack
-            </span>{" "}
-            for autonomous agents.
-          </h2>
-          <p className="mt-4 text-pretty text-base text-muted-foreground">
-            Progena turns agent design into something inheritable, ownable, and
-            improvable across generations.
-          </p>
-        </div>
+      <SectionHeader eyebrow="How it works" />
 
-        <div className="grid gap-px overflow-hidden rounded-lg bg-border-soft md:grid-cols-3">
-          {steps.map((step, i) => {
-            const Icon = step.icon;
-            return (
-              <motion.div
-                key={step.index}
-                initial={{ opacity: 0, y: 12 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.45, delay: i * 0.08 }}
-                className="flex flex-col gap-6 bg-background p-8"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {step.index}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {steps.map((step, i) => (
+          <motion.div
+            key={step.number}
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-60px" }}
+            transition={{ duration: 0.4, delay: i * 0.06 }}
+            className="p-px"
+            style={{ clipPath: CLIP, background: "rgba(255,255,255,0.18)" }}
+          >
+            <article
+              className="relative h-full bg-[#0a0a0a] text-foreground"
+              style={{ clipPath: CLIP }}
+            >
+              <div className="absolute inset-0 opacity-20" style={DOT_BG} />
+
+              <div className="relative flex flex-col gap-4 p-6">
+                <div className="relative flex flex-col gap-3 border border-dashed border-white/22 p-4">
+                  <span className="pointer-events-none absolute left-0 top-0 h-3 w-3 border-l border-t border-white/70" />
+                  <span className="pointer-events-none absolute right-0 top-0 h-3 w-3 border-r border-t border-white/70" />
+                  <span className="pointer-events-none absolute bottom-0 left-0 h-3 w-3 border-b border-l border-white/70" />
+                  <span className="pointer-events-none absolute bottom-0 right-0 h-3 w-3 border-b border-r border-white/70" />
+
+                  <span className="text-xs font-medium uppercase tracking-[0.18em] text-white/30">
+                    {step.number}
                   </span>
-                  <Icon size={20} weight="duotone" className={step.accent} />
-                </div>
 
-                <div className="flex-1">
-                  <h3 className="mb-3 text-xl tracking-tight text-foreground">
+                  <h3 className="text-sm font-semibold leading-snug text-white/90">
                     {step.title}
                   </h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {step.body}
-                  </p>
                 </div>
 
-                <pre className="overflow-x-auto rounded-md border border-border-soft bg-muted/30 px-3 py-2 font-mono text-[11px] text-muted-foreground">
-                  <code>{step.code}</code>
-                </pre>
-              </motion.div>
-            );
-          })}
-        </div>
+                <p className="text-xs leading-relaxed text-white/45">
+                  {step.description}
+                </p>
+              </div>
+            </article>
+          </motion.div>
+        ))}
       </div>
     </section>
   );
