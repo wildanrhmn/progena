@@ -12,7 +12,8 @@
     "deploy:galileo": "hardhat ignition deploy ignition/modules/Progena.ts --network galileo",
     "deploy:mainnet": "hardhat ignition deploy ignition/modules/Progena.ts --network mainnet",
     "deploy:registry:mainnet": "hardhat run scripts/deploy-agent-registry.ts --network mainnet",
-    "claim:founders:mainnet": "hardhat run scripts/claim-founder-names.ts --network mainnet"
+    "claim:founders:mainnet": "hardhat run scripts/claim-founder-names.ts --network mainnet",
+    "breed:demo:mainnet": "hardhat run scripts/breed-demo.ts --network mainnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^4.0.0",
