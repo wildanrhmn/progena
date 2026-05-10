@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, Pulse } from "@phosphor-icons/react";
+import { Pulse } from "@phosphor-icons/react";
 import { NETWORK_NAME, chain } from "@/lib/chain";
+import { LiquidCtaButton } from "@/components/ui/liquid-cta-button";
 
 export function Hero() {
   return (
@@ -57,16 +58,8 @@ export function Hero() {
           transition={{ duration: 0.55, delay: 0.25 }}
           className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:gap-4"
         >
-          <Link
-            href="/agents"
-            className="group inline-flex items-center gap-2 rounded-md bg-white px-5 py-2.5 text-sm font-medium text-neutral-950 transition-opacity hover:opacity-90"
-          >
-            Browse agents
-            <ArrowRight
-              size={16}
-              weight="bold"
-              className="transition-transform group-hover:translate-x-0.5"
-            />
+          <Link href="/agents" aria-label="Browse agents">
+            <LiquidCtaButton>Browse agents</LiquidCtaButton>
           </Link>
           <Link
             href="#how-it-works"
