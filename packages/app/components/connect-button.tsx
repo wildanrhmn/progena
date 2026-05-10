@@ -10,7 +10,7 @@ export function ConnectButton() {
 
   if (!ready) {
     return (
-      <div className="h-9 w-24 animate-pulse rounded-md border border-border-soft bg-muted/40" />
+      <div className="h-10 w-28 animate-pulse rounded-full border border-zinc-800/60 bg-zinc-900/40" />
     );
   }
 
@@ -18,9 +18,9 @@ export function ConnectButton() {
     return (
       <button
         onClick={login}
-        className="inline-flex h-9 items-center gap-2 rounded-md bg-white px-3 text-sm font-medium text-neutral-950 transition-opacity hover:opacity-90"
+        className="inline-flex h-10 items-center gap-2 rounded-full bg-emerald-600 px-5 text-sm font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.35)] transition-all hover:bg-emerald-500"
       >
-        <Wallet size={16} weight="bold" />
+        <Wallet size={15} weight="bold" />
         Sign in
       </button>
     );
@@ -39,11 +39,11 @@ export function ConnectButton() {
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-muted/40 px-3 text-sm text-foreground transition-colors hover:border-muted-foreground"
+        className="inline-flex h-10 items-center gap-2 rounded-full border border-zinc-800/80 bg-zinc-900/60 px-4 text-sm text-zinc-100 transition-colors hover:border-zinc-700"
       >
-        <span className="h-2 w-2 rounded-full bg-accent-life" />
-        <span className="font-mono text-xs">{display}</span>
-        <CaretDown size={12} weight="bold" className="text-muted-foreground" />
+        <span className="h-2 w-2 rounded-full bg-accent-life shadow-[0_0_8px_rgba(52,211,153,0.7)]" />
+        <span className="font-mono text-xs text-zinc-200">{display}</span>
+        <CaretDown size={12} weight="bold" className="text-zinc-500" />
       </button>
       {open && (
         <>
@@ -52,11 +52,11 @@ export function ConnectButton() {
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <div className="absolute right-0 z-20 mt-1 w-48 rounded-md border border-border bg-background shadow-lg">
+          <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/95 backdrop-blur-xl shadow-xl">
             {address && (
-              <div className="border-b border-border-soft px-3 py-2 text-[11px] text-muted-foreground">
+              <div className="border-b border-zinc-800/80 px-4 py-3 text-[11px] text-zinc-500">
                 <div className="mb-1 uppercase tracking-wider">Wallet</div>
-                <div className="font-mono text-foreground">{display}</div>
+                <div className="font-mono text-sm text-zinc-100">{display}</div>
               </div>
             )}
             <button
@@ -64,7 +64,7 @@ export function ConnectButton() {
                 logout();
                 setOpen(false);
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100"
             >
               <SignOut size={14} />
               Sign out

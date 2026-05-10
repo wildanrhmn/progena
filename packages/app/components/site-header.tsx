@@ -4,32 +4,48 @@ import Link from "next/link";
 import { CircleHalf } from "@phosphor-icons/react";
 import { ConnectButton } from "./connect-button";
 
+const navLinks = [
+  { href: "/agents", label: "Agents" },
+  { href: "/rounds", label: "Rounds" },
+  { href: "/breed", label: "Breed" },
+  { href: "/leaderboard", label: "Leaderboard" },
+];
+
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border-soft bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2 font-medium text-foreground">
-          <CircleHalf size={20} weight="duotone" className="text-accent-life" />
-          <span className="tracking-tight">progena</span>
+    <header className="fixed left-0 right-0 top-0 z-40 p-4 sm:p-6">
+      <nav className="mx-auto grid h-14 max-w-6xl grid-cols-[auto_1fr_auto] items-center rounded-full border border-zinc-800/60 bg-zinc-950/80 pl-5 pr-2 backdrop-blur-xl sm:pl-7">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-zinc-100"
+          aria-label="Progena home"
+        >
+          <CircleHalf
+            size={20}
+            weight="duotone"
+            className="text-accent-life"
+          />
+          <span className="font-display text-xl italic tracking-tight">
+            progena
+          </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-          <Link href="/agents" className="transition-colors hover:text-foreground">
-            Agents
-          </Link>
-          <Link href="/rounds" className="transition-colors hover:text-foreground">
-            Rounds
-          </Link>
-          <Link href="/breed" className="transition-colors hover:text-foreground">
-            Breed
-          </Link>
-          <Link href="/leaderboard" className="transition-colors hover:text-foreground">
-            Leaderboard
-          </Link>
-        </nav>
+        <div className="hidden items-center justify-center gap-1 md:flex">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="rounded-full px-3 py-2 text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-100"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
 
-        <ConnectButton />
-      </div>
+        <div className="justify-self-end">
+          <ConnectButton />
+        </div>
+      </nav>
     </header>
   );
 }

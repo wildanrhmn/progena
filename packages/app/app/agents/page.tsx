@@ -16,7 +16,7 @@ export default function AgentsPage() {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto max-w-6xl px-6 pt-12 pb-24 sm:pt-16">
+      <main className="mx-auto max-w-6xl px-6 pt-28 pb-24 sm:pt-32">
         <header className="mb-12 flex flex-col gap-4 border-b border-border-soft pb-10">
           <motion.div
             initial={{ opacity: 0, y: 6 }}

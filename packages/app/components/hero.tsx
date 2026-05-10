@@ -63,7 +63,7 @@ export function Hero() {
           </Link>
           <Link
             href="#how-it-works"
-            className="inline-flex items-center gap-2 rounded-md border border-border px-5 py-2.5 text-sm text-foreground transition-colors hover:border-muted-foreground"
+            className="inline-flex items-center gap-2 rounded-md px-5 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <Pulse size={16} weight="bold" />
             How it works
