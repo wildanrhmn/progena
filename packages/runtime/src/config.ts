@@ -1,4 +1,5 @@
 import "dotenv/config";
+import type { Address, Hex } from "viem";
 import { z } from "zod";
 
 const ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/;
@@ -6,11 +7,13 @@ const PRIVATE_KEY_REGEX = /^0x[0-9a-fA-F]{64}$/;
 
 const addressSchema = z
   .string()
-  .regex(ADDRESS_REGEX, "expected a 0x-prefixed 20-byte hex address");
+  .regex(ADDRESS_REGEX, "expected a 0x-prefixed 20-byte hex address")
+  .transform((s) => s as Address);
 
 const privateKeySchema = z
   .string()
-  .regex(PRIVATE_KEY_REGEX, "expected a 0x-prefixed 32-byte hex private key");
+  .regex(PRIVATE_KEY_REGEX, "expected a 0x-prefixed 32-byte hex private key")
+  .transform((s) => s as Hex);
 
 const networkSchema = z.enum(["galileo", "mainnet"]);
 const logLevelSchema = z.enum(["trace", "debug", "info", "warn", "error"]);
