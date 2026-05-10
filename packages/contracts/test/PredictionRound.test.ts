@@ -21,7 +21,7 @@ function commitOf(roundId: bigint, agentId: bigint, prediction: number, nonce: `
 
 async function deployStack() {
   const { viem } = hre;
-  const [owner, alice, bob, carol, intruder] = await viem.getWalletClients();
+  const [owner, alice, bob, carol, intruder, sponsor] = await viem.getWalletClients();
 
   const agentGenome = await viem.deployContract("AgentGenome", [
     owner.account.address,
@@ -41,7 +41,7 @@ async function deployStack() {
 
   await oracle.write.setReporter([round.address]);
 
-  return { agentGenome, oracle, round, owner, alice, bob, carol, intruder };
+  return { agentGenome, oracle, round, owner, alice, bob, carol, intruder, sponsor };
 }
 
 async function mintGenesis(
@@ -53,25 +53,30 @@ async function mintGenesis(
   return s.agentGenome.read.totalMinted();
 }
 
-async function openRound(s: Awaited<ReturnType<typeof deployStack>>) {
+async function openRound(
+  s: Awaited<ReturnType<typeof deployStack>>,
+  entryFee: bigint = 0n
+) {
   const now = await time.latest();
   const commitDeadline = BigInt(now + 3600);
   const revealDeadline = BigInt(now + 7200);
-  await s.round.write.createRound([QUESTION, commitDeadline, revealDeadline]);
-  return { roundId: 1n, commitDeadline, revealDeadline };
+  await s.round.write.createRound([QUESTION, commitDeadline, revealDeadline, entryFee]);
+  return { roundId: 1n, commitDeadline, revealDeadline, entryFee };
 }
 
 describe("PredictionRound", () => {
   describe("createRound", () => {
-    it("assigns sequential round ids and stores deadlines", async () => {
+    it("assigns sequential round ids, stores deadlines and entryFee", async () => {
       const stack = await deployStack();
-      const { roundId, commitDeadline, revealDeadline } = await openRound(stack);
+      const { roundId, commitDeadline, revealDeadline } = await openRound(stack, 100n);
 
       const data = await stack.round.read.roundOf([roundId]);
       expect(data.commitDeadline).to.equal(commitDeadline);
       expect(data.revealDeadline).to.equal(revealDeadline);
       expect(data.questionHash).to.equal(QUESTION);
       expect(data.resolved).to.equal(false);
+      expect(data.entryFee).to.equal(100n);
+      expect(data.totalPool).to.equal(0n);
       expect(await stack.round.read.nextRoundId()).to.equal(2n);
     });
 
@@ -81,7 +86,7 @@ describe("PredictionRound", () => {
 
       await expect(
         stack.round.write.createRound(
-          [QUESTION, BigInt(now + 100), BigInt(now + 200)],
+          [QUESTION, BigInt(now + 100), BigInt(now + 200), 0n],
           { account: stack.alice.account }
         )
       ).to.be.rejectedWith(/OwnableUnauthorizedAccount/);
@@ -92,11 +97,11 @@ describe("PredictionRound", () => {
       const now = await time.latest();
 
       await expect(
-        stack.round.write.createRound([QUESTION, BigInt(now - 1), BigInt(now + 100)])
+        stack.round.write.createRound([QUESTION, BigInt(now - 1), BigInt(now + 100), 0n])
       ).to.be.rejectedWith(/InvalidDeadlines/);
 
       await expect(
-        stack.round.write.createRound([QUESTION, BigInt(now + 200), BigInt(now + 100)])
+        stack.round.write.createRound([QUESTION, BigInt(now + 200), BigInt(now + 100), 0n])
       ).to.be.rejectedWith(/InvalidDeadlines/);
     });
   });
@@ -181,6 +186,91 @@ describe("PredictionRound", () => {
           account: stack.alice.account,
         })
       ).to.be.rejectedWith(/NotInCommitPhase/);
+    });
+
+    it("requires entry fee when set, accumulates into pool, refunds excess", async () => {
+      const stack = await deployStack();
+      const publicClient = await hre.viem.getPublicClient();
+      await mintGenesis(stack, stack.alice.account.address, "g");
+      const { roundId } = await openRound(stack, 1000n);
+
+      await stack.round.write.commitPrediction(
+        [roundId, 1n, commitOf(roundId, 1n, 5000, NONCE_A)],
+        { account: stack.alice.account, value: 1500n }
+      );
+
+      const data = await stack.round.read.roundOf([roundId]);
+      expect(data.totalPool).to.equal(1000n);
+      expect(await publicClient.getBalance({ address: stack.round.address })).to.equal(1000n);
+    });
+
+    it("rejects commits below the entry fee", async () => {
+      const stack = await deployStack();
+      await mintGenesis(stack, stack.alice.account.address, "g");
+      const { roundId } = await openRound(stack, 500n);
+
+      await expect(
+        stack.round.write.commitPrediction(
+          [roundId, 1n, commitOf(roundId, 1n, 5000, NONCE_A)],
+          { account: stack.alice.account, value: 100n }
+        )
+      ).to.be.rejectedWith(/InsufficientEntryFee/);
+    });
+
+    it("free round (entryFee 0) accepts msg.value 0", async () => {
+      const stack = await deployStack();
+      await mintGenesis(stack, stack.alice.account.address, "g");
+      const { roundId } = await openRound(stack, 0n);
+
+      await stack.round.write.commitPrediction(
+        [roundId, 1n, commitOf(roundId, 1n, 5000, NONCE_A)],
+        { account: stack.alice.account }
+      );
+
+      const data = await stack.round.read.roundOf([roundId]);
+      expect(data.totalPool).to.equal(0n);
+    });
+  });
+
+  describe("sponsorRound", () => {
+    it("adds value to the round pool", async () => {
+      const stack = await deployStack();
+      const { roundId } = await openRound(stack, 0n);
+
+      await stack.round.write.sponsorRound([roundId], {
+        account: stack.sponsor.account,
+        value: 5000n,
+      });
+
+      const data = await stack.round.read.roundOf([roundId]);
+      expect(data.totalPool).to.equal(5000n);
+    });
+
+    it("rejects zero-value sponsorship", async () => {
+      const stack = await deployStack();
+      const { roundId } = await openRound(stack, 0n);
+
+      await expect(
+        stack.round.write.sponsorRound([roundId], { account: stack.sponsor.account })
+      ).to.be.rejectedWith(/NoSponsorAmount/);
+    });
+
+    it("rejects sponsorship of a non-existent round", async () => {
+      const stack = await deployStack();
+      await expect(
+        stack.round.write.sponsorRound([42n], { account: stack.sponsor.account, value: 1n })
+      ).to.be.rejectedWith(/RoundDoesNotExist/);
+    });
+
+    it("rejects sponsorship of a resolved round", async () => {
+      const stack = await deployStack();
+      const { roundId, revealDeadline } = await openRound(stack);
+      await time.increaseTo(revealDeadline + 1n);
+      await stack.round.write.resolveRound([roundId, 5000]);
+
+      await expect(
+        stack.round.write.sponsorRound([roundId], { account: stack.sponsor.account, value: 1n })
+      ).to.be.rejectedWith(/RoundAlreadyResolved/);
     });
   });
 
@@ -390,6 +480,167 @@ describe("PredictionRound", () => {
       await expect(stack.round.write.resolveRound([roundId, 12000])).to.be.rejectedWith(
         /InvalidOutcome/
       );
+    });
+  });
+
+  describe("payout distribution", () => {
+    async function runRound(opts: {
+      entryFee?: bigint;
+      sponsor?: bigint;
+      participants: Array<{ owner: "alice" | "bob" | "carol"; prediction: number }>;
+      outcome: number;
+    }) {
+      const stack = await deployStack();
+      const ownerKey = (n: "alice" | "bob" | "carol") => stack[n];
+      for (let i = 0; i < opts.participants.length; i++) {
+        const p = opts.participants[i]!;
+        await mintGenesis(stack, ownerKey(p.owner).account.address, `g${i + 1}`);
+      }
+
+      const { roundId, commitDeadline, revealDeadline } = await openRound(
+        stack,
+        opts.entryFee ?? 0n
+      );
+
+      if (opts.sponsor && opts.sponsor > 0n) {
+        await stack.round.write.sponsorRound([roundId], {
+          account: stack.sponsor.account,
+          value: opts.sponsor,
+        });
+      }
+
+      for (let i = 0; i < opts.participants.length; i++) {
+        const p = opts.participants[i]!;
+        const id = BigInt(i + 1);
+        await stack.round.write.commitPrediction(
+          [roundId, id, commitOf(roundId, id, p.prediction, NONCE_A)],
+          { account: ownerKey(p.owner).account, value: opts.entryFee ?? 0n }
+        );
+      }
+      await time.increaseTo(commitDeadline + 1n);
+      for (let i = 0; i < opts.participants.length; i++) {
+        const p = opts.participants[i]!;
+        await stack.round.write.revealPrediction([
+          roundId,
+          BigInt(i + 1),
+          p.prediction,
+          NONCE_A,
+        ]);
+      }
+      await time.increaseTo(revealDeadline + 1n);
+      await stack.round.write.resolveRound([roundId, opts.outcome]);
+      return { stack, roundId };
+    }
+
+    it("credits positive scorers proportional to score", async () => {
+      const { stack } = await runRound({
+        entryFee: 1000n,
+        participants: [
+          { owner: "alice", prediction: 10000 },
+          { owner: "bob", prediction: 5000 },
+        ],
+        outcome: 10000,
+      });
+
+      const aliceScore = 10000n;
+      const bobScore = 0n;
+      const totalPositive = aliceScore + bobScore;
+      const pool = 2000n;
+      const expectedAlice = (pool * aliceScore) / totalPositive;
+      expect(
+        await stack.round.read.pendingPayoutOf([stack.alice.account.address])
+      ).to.equal(expectedAlice);
+      expect(await stack.round.read.pendingPayoutOf([stack.bob.account.address])).to.equal(0n);
+    });
+
+    it("includes sponsor pool in the payout total", async () => {
+      const { stack } = await runRound({
+        entryFee: 0n,
+        sponsor: 5000n,
+        participants: [
+          { owner: "alice", prediction: 10000 },
+          { owner: "bob", prediction: 0 },
+        ],
+        outcome: 10000,
+      });
+
+      expect(
+        await stack.round.read.pendingPayoutOf([stack.alice.account.address])
+      ).to.equal(5000n);
+    });
+
+    it("nothing credited when no positive scorers", async () => {
+      const { stack } = await runRound({
+        entryFee: 1000n,
+        participants: [
+          { owner: "alice", prediction: 0 },
+          { owner: "bob", prediction: 0 },
+        ],
+        outcome: 10000,
+      });
+
+      expect(
+        await stack.round.read.pendingPayoutOf([stack.alice.account.address])
+      ).to.equal(0n);
+      expect(await stack.round.read.pendingPayoutOf([stack.bob.account.address])).to.equal(0n);
+    });
+
+    it("splits pool across multiple positive scorers weighted by score", async () => {
+      const { stack } = await runRound({
+        entryFee: 1000n,
+        participants: [
+          { owner: "alice", prediction: 10000 },
+          { owner: "bob", prediction: 7500 },
+          { owner: "carol", prediction: 5000 },
+        ],
+        outcome: 10000,
+      });
+
+      const aliceScore = 10000n;
+      const bobScore = 5000n;
+      const carolScore = 0n;
+      const totalPositive = aliceScore + bobScore + carolScore;
+      const pool = 3000n;
+      expect(
+        await stack.round.read.pendingPayoutOf([stack.alice.account.address])
+      ).to.equal((pool * aliceScore) / totalPositive);
+      expect(
+        await stack.round.read.pendingPayoutOf([stack.bob.account.address])
+      ).to.equal((pool * bobScore) / totalPositive);
+      expect(await stack.round.read.pendingPayoutOf([stack.carol.account.address])).to.equal(0n);
+    });
+  });
+
+  describe("withdrawPayout", () => {
+    it("transfers the pending payout and zeroes the balance", async () => {
+      const stack = await deployStack();
+      await mintGenesis(stack, stack.alice.account.address, "g");
+      const { roundId, commitDeadline, revealDeadline, entryFee } = await openRound(stack, 1000n);
+
+      await stack.round.write.commitPrediction(
+        [roundId, 1n, commitOf(roundId, 1n, 10000, NONCE_A)],
+        { account: stack.alice.account, value: entryFee }
+      );
+      await time.increaseTo(commitDeadline + 1n);
+      await stack.round.write.revealPrediction([roundId, 1n, 10000, NONCE_A]);
+      await time.increaseTo(revealDeadline + 1n);
+      await stack.round.write.resolveRound([roundId, 10000]);
+
+      const before = await stack.round.read.pendingPayoutOf([stack.alice.account.address]);
+      expect(before).to.equal(1000n);
+
+      await stack.round.write.withdrawPayout({ account: stack.alice.account });
+
+      expect(
+        await stack.round.read.pendingPayoutOf([stack.alice.account.address])
+      ).to.equal(0n);
+    });
+
+    it("rejects withdraw when no balance is available", async () => {
+      const stack = await deployStack();
+      await expect(
+        stack.round.write.withdrawPayout({ account: stack.alice.account })
+      ).to.be.rejectedWith(/NoPayoutAvailable/);
     });
   });
 });

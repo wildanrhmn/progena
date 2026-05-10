@@ -11,6 +11,12 @@ pragma solidity ^0.8.28;
 ///         `10000 - 2 * |prediction - outcome|`, which is symmetric in
 ///         [-10000, +10000]. Unrevealed commitments are silently skipped
 ///         when scoring.
+///
+///         Each round has an `entryFee` paid on commit. Anyone may also
+///         contribute to a round's pool via {sponsorRound}. On resolve,
+///         the pool is split among positive-scoring agents weighted by
+///         score; payouts are credited to each agent's current OWNER and
+///         claimable via {withdrawPayout} (pull pattern).
 interface IPredictionRound {
     enum RoundStatus {
         NonExistent,
@@ -27,6 +33,8 @@ interface IPredictionRound {
     /// @param resolved        True once `resolveRound` has been called.
     /// @param totalCommitted  Number of agents that committed.
     /// @param totalRevealed   Number of those that subsequently revealed.
+    /// @param entryFee        Required `msg.value` per `commitPrediction` call.
+    /// @param totalPool       Cumulative pool from entry fees + sponsor contributions.
     struct RoundData {
         bytes32 questionHash;
         uint64 commitDeadline;
@@ -35,6 +43,8 @@ interface IPredictionRound {
         bool resolved;
         uint256 totalCommitted;
         uint256 totalRevealed;
+        uint256 entryFee;
+        uint256 totalPool;
     }
 
     struct CommitmentData {
@@ -48,26 +58,49 @@ interface IPredictionRound {
         uint256 indexed roundId,
         bytes32 questionHash,
         uint64 commitDeadline,
-        uint64 revealDeadline
+        uint64 revealDeadline,
+        uint256 entryFee
     );
     event PredictionCommitted(
         uint256 indexed roundId,
         uint256 indexed agentId,
         address indexed committer,
-        bytes32 commitHash
+        bytes32 commitHash,
+        uint256 entryPaid
     );
     event PredictionRevealed(uint256 indexed roundId, uint256 indexed agentId, uint16 prediction);
-    event RoundResolved(uint256 indexed roundId, uint16 outcome, uint256 scoredAgents);
+    event RoundResolved(
+        uint256 indexed roundId,
+        uint16 outcome,
+        uint256 scoredAgents,
+        uint256 totalPaidOut
+    );
+    event PoolSponsored(uint256 indexed roundId, address indexed sponsor, uint256 amount);
+    event PayoutCredited(
+        address indexed beneficiary,
+        uint256 indexed roundId,
+        uint256 indexed agentId,
+        uint256 amount
+    );
+    event PayoutWithdrawn(address indexed beneficiary, uint256 amount);
 
     /// @notice Create a new round. Only callable by the contract owner.
-    function createRound(bytes32 questionHash, uint64 commitDeadline, uint64 revealDeadline)
-        external
-        returns (uint256 roundId);
+    /// @param entryFee Required `msg.value` per commit. Pass `0` for a free round
+    ///                 (only the sponsor pool will fund payouts).
+    function createRound(
+        bytes32 questionHash,
+        uint64 commitDeadline,
+        uint64 revealDeadline,
+        uint256 entryFee
+    ) external returns (uint256 roundId);
 
     /// @notice Commit a sealed prediction for `agentId` in `roundId`.
     ///         Caller must own the agent. `commitHash` MUST equal
     ///         `keccak256(abi.encode(roundId, agentId, prediction, nonce))`.
-    function commitPrediction(uint256 roundId, uint256 agentId, bytes32 commitHash) external;
+    ///         Caller must send `msg.value >= round.entryFee`. Excess is refunded.
+    function commitPrediction(uint256 roundId, uint256 agentId, bytes32 commitHash)
+        external
+        payable;
 
     /// @notice Reveal a previously committed prediction. Anyone may call;
     ///         only those who know the original `(prediction, nonce)` can
@@ -76,9 +109,21 @@ interface IPredictionRound {
         external;
 
     /// @notice Resolve a round with the actual outcome (bps). Computes
-    ///         scores for all revealed predictions and forwards them to
-    ///         the reputation oracle in one batch.
+    ///         scores for all revealed predictions, forwards them to the
+    ///         reputation oracle in one batch, and credits the round's pool
+    ///         to positive-scoring agents' OWNERS weighted by score.
     function resolveRound(uint256 roundId, uint16 outcome) external;
+
+    /// @notice Add `msg.value` to a round's pool without participating.
+    ///         Useful for kickstart sponsorship by the protocol or third parties.
+    function sponsorRound(uint256 roundId) external payable;
+
+    /// @notice Pull-payment: claim accumulated payouts for `msg.sender`.
+    /// @return amount The amount transferred.
+    function withdrawPayout() external returns (uint256 amount);
+
+    /// @notice Pending claimable payout for `beneficiary`.
+    function pendingPayoutOf(address beneficiary) external view returns (uint256);
 
     function statusOf(uint256 roundId) external view returns (RoundStatus);
     function roundOf(uint256 roundId) external view returns (RoundData memory);

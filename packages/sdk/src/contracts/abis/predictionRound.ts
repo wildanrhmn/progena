@@ -53,6 +53,22 @@ export const predictionRoundAbi = [
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "required",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "sent",
+        "type": "uint256"
+      }
+    ],
+    "name": "InsufficientEntryFee",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "InvalidDeadlines",
     "type": "error"
@@ -81,6 +97,16 @@ export const predictionRoundAbi = [
       }
     ],
     "name": "NoCommitment",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NoPayoutAvailable",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NoSponsorAmount",
     "type": "error"
   },
   {
@@ -133,6 +159,11 @@ export const predictionRoundAbi = [
   },
   {
     "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "RevealPhaseNotEnded",
     "type": "error"
   },
@@ -159,6 +190,11 @@ export const predictionRoundAbi = [
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "TransferFailed",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -175,6 +211,81 @@ export const predictionRoundAbi = [
       }
     ],
     "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "beneficiary",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "roundId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "agentId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "PayoutCredited",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "beneficiary",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "PayoutWithdrawn",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "roundId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sponsor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "PoolSponsored",
     "type": "event"
   },
   {
@@ -203,6 +314,12 @@ export const predictionRoundAbi = [
         "internalType": "bytes32",
         "name": "commitHash",
         "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "entryPaid",
+        "type": "uint256"
       }
     ],
     "name": "PredictionCommitted",
@@ -259,6 +376,12 @@ export const predictionRoundAbi = [
         "internalType": "uint64",
         "name": "revealDeadline",
         "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "entryFee",
+        "type": "uint256"
       }
     ],
     "name": "RoundCreated",
@@ -283,6 +406,12 @@ export const predictionRoundAbi = [
         "indexed": false,
         "internalType": "uint256",
         "name": "scoredAgents",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "totalPaidOut",
         "type": "uint256"
       }
     ],
@@ -354,7 +483,7 @@ export const predictionRoundAbi = [
     ],
     "name": "commitPrediction",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -419,6 +548,11 @@ export const predictionRoundAbi = [
         "internalType": "uint64",
         "name": "revealDeadline",
         "type": "uint64"
+      },
+      {
+        "internalType": "uint256",
+        "name": "entryFee",
+        "type": "uint256"
       }
     ],
     "name": "createRound",
@@ -453,6 +587,25 @@ export const predictionRoundAbi = [
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "beneficiary",
+        "type": "address"
+      }
+    ],
+    "name": "pendingPayoutOf",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -570,6 +723,16 @@ export const predictionRoundAbi = [
             "internalType": "uint256",
             "name": "totalRevealed",
             "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "entryFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalPool",
+            "type": "uint256"
           }
         ],
         "internalType": "struct IPredictionRound.RoundData",
@@ -578,6 +741,19 @@ export const predictionRoundAbi = [
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "roundId",
+        "type": "uint256"
+      }
+    ],
+    "name": "sponsorRound",
+    "outputs": [],
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -609,6 +785,19 @@ export const predictionRoundAbi = [
     ],
     "name": "transferOwnership",
     "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdrawPayout",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   }
