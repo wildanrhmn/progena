@@ -12,7 +12,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "seed:genesis": "tsx src/scripts/seed-genesis.ts"
+    "seed:genesis": "tsx src/scripts/seed-genesis.ts",
+    "round:create": "tsx src/scripts/round-create.ts",
+    "round:commit": "tsx src/scripts/round-commit.ts",
+    "round:reveal": "tsx src/scripts/round-reveal.ts",
+    "round:resolve": "tsx src/scripts/round-resolve.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
@@ -23,6 +27,7 @@
   "dependencies": {
     "@progena/sdk": "*",
     "dotenv": "^16.4.5",
+    "openai": "^4.71.0",
     "viem": "^2.21.0",
     "zod": "^3.23.8"
   }
