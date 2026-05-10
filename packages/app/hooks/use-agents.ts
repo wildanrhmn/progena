@@ -35,7 +35,7 @@ export function useTotalMinted() {
 
 const CALLS_PER_AGENT = 5;
 
-function useAgentRows(ids: bigint[]) {
+export function useAgentRows(ids: bigint[]) {
   const calls = useMemo(() => {
     return ids.flatMap((id) => [
       { ...agentGenomeContract, functionName: "agentOf", args: [id] } as const,

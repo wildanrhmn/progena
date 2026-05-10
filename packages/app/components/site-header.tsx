@@ -6,9 +6,9 @@ import { ConnectButton } from "./connect-button";
 
 const navLinks = [
   { href: "/agents", label: "Agents" },
-  { href: "/rounds", label: "Rounds" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/breed", label: "Breed" },
-  { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/rounds", label: "Rounds" },
 ];
 
 export function SiteHeader() {
