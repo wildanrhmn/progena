@@ -10,6 +10,7 @@ export default buildModule("Progena", (m) => {
   const levelShareBps = m.getParameter("levelShareBps", DEFAULT_LEVEL_SHARE_BPS);
   const maxDepth = m.getParameter("maxDepth", DEFAULT_MAX_DEPTH);
   const genomeWriter = m.getParameter("genomeWriter", m.getAccount(0));
+  const memoryWriter = m.getParameter("memoryWriter", m.getAccount(0));
 
   const agentGenome = m.contract("AgentGenome", [initialOwner, baseURI]);
 
@@ -34,9 +35,12 @@ export default buildModule("Progena", (m) => {
     reputationOracle,
   ]);
 
+  const agentMemory = m.contract("AgentMemory", [initialOwner, agentGenome]);
+
   m.call(agentGenome, "setBreedingContract", [breedingContract]);
   m.call(agentGenome, "setGenomeWriter", [genomeWriter]);
   m.call(reputationOracle, "setReporter", [predictionRound]);
+  m.call(agentMemory, "setMemoryWriter", [memoryWriter]);
 
   return {
     agentGenome,
@@ -44,5 +48,6 @@ export default buildModule("Progena", (m) => {
     breedingContract,
     reputationOracle,
     predictionRound,
+    agentMemory,
   };
 });

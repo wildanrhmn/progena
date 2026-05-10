@@ -11,6 +11,7 @@ import {
   royaltySplitterAbi,
   reputationOracleAbi,
   predictionRoundAbi,
+  agentMemoryAbi,
 } from "./abis/index.js";
 
 export interface ProgenaAddresses {
@@ -19,6 +20,7 @@ export interface ProgenaAddresses {
   royaltySplitter: Address;
   reputationOracle: Address;
   predictionRound: Address;
+  agentMemory: Address;
 }
 
 export interface ContractClientOptions {
@@ -56,6 +58,7 @@ export type PredictionRoundClient = GetContractReturnType<
   Clients,
   Address
 >;
+export type AgentMemoryClient = GetContractReturnType<typeof agentMemoryAbi, Clients, Address>;
 
 function clientArg(opts: ContractClientOptions): Clients {
   return opts.walletClient
@@ -105,12 +108,21 @@ export function createPredictionRoundClient(opts: ContractClientOptions): Predic
   }) as PredictionRoundClient;
 }
 
+export function createAgentMemoryClient(opts: ContractClientOptions): AgentMemoryClient {
+  return getContract({
+    address: opts.address,
+    abi: agentMemoryAbi,
+    client: clientArg(opts),
+  }) as AgentMemoryClient;
+}
+
 export interface ProgenaClient {
   agentGenome: AgentGenomeClient;
   breedingContract: BreedingContractClient;
   royaltySplitter: RoyaltySplitterClient;
   reputationOracle: ReputationOracleClient;
   predictionRound: PredictionRoundClient;
+  agentMemory: AgentMemoryClient;
   addresses: ProgenaAddresses;
 }
 
@@ -133,6 +145,10 @@ export function createProgenaClient(opts: ProgenaClientOptions): ProgenaClient {
     predictionRound: createPredictionRoundClient({
       ...common,
       address: opts.addresses.predictionRound,
+    }),
+    agentMemory: createAgentMemoryClient({
+      ...common,
+      address: opts.addresses.agentMemory,
     }),
     addresses: opts.addresses,
   };
