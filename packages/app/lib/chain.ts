@@ -8,6 +8,7 @@ const DEFAULT_ADDRESSES = {
   reputationOracle: "0xc6FC73bAC27f49b504DD267908A51F438f6Ab3ea",
   predictionRound: "0x17e111593242AC706509D7e9EB676A5602277Df4",
   agentMemory: "0x55CeB5f91B1806B2F52c8eeAE3181632B90Bb449",
+  agentRegistry: "0x4560a71a07cf8172cfb0bf61b96a5480255cec8d",
 } as const satisfies Record<string, Address>;
 
 const fromEnvOrDefault = (envName: string, fallback: Address): Address => {
@@ -46,6 +47,10 @@ export const ADDRESSES = {
     DEFAULT_ADDRESSES.predictionRound
   ),
   agentMemory: fromEnvOrDefault("NEXT_PUBLIC_AGENT_MEMORY", DEFAULT_ADDRESSES.agentMemory),
+  agentRegistry: fromEnvOrDefault(
+    "NEXT_PUBLIC_AGENT_REGISTRY",
+    DEFAULT_ADDRESSES.agentRegistry
+  ),
 } as const;
 
 export const EXPLORER_URL = chain.blockExplorers?.default?.url ?? "https://chainscan.0g.ai";

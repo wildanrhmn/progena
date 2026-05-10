@@ -16,7 +16,7 @@ import {
   shortAddress,
   shortHash,
 } from "@/lib/format";
-import type { AgentRow } from "@/hooks/use-agents";
+import { displayNameOf, type AgentRow } from "@/hooks/use-agents";
 
 const accentForGen = (gen: number): string => {
   if (gen === 0) return "text-accent-life";
@@ -45,9 +45,10 @@ export function AgentCard({ agent, index = 0 }: { agent: AgentRow; index?: numbe
             />
             <div>
               <div className="text-base font-medium tracking-tight text-foreground">
-                Agent #{agent.id.toString()}
+                {displayNameOf(agent)}
               </div>
               <div className="mt-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                {agent.name ? `#${agent.id.toString()} · ` : ""}
                 {generationLabel(agent.generation)} ·{" "}
                 {formatRelative(agent.bornAt)}
               </div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, CircleHalf, Sparkle } from "@phosphor-icons/react";
-import { useFounders } from "@/hooks/use-agents";
+import { displayNameOf, useFounders } from "@/hooks/use-agents";
 import {
   formatRelative,
   formatScore,
@@ -74,10 +74,10 @@ export function FoundersStrip() {
                   </div>
 
                   <div className="mb-1 text-base font-medium text-foreground">
-                    Agent #{agent.id.toString()}
+                    {displayNameOf(agent)}
                   </div>
                   <div className="mb-5 text-[11px] uppercase tracking-wider text-muted-foreground">
-                    {formatRelative(agent.bornAt)}
+                    #{agent.id.toString()} · {formatRelative(agent.bornAt)}
                   </div>
 
                   <div className="mb-4 grid grid-cols-2 gap-3 text-xs">

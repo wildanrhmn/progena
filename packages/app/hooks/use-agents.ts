@@ -5,11 +5,13 @@ import { useReadContract, useReadContracts } from "wagmi";
 import type { Address } from "viem";
 import {
   agentGenomeContract,
+  agentRegistryContract,
   reputationOracleContract,
 } from "@/lib/contracts";
 
 export type AgentRow = {
   id: bigint;
+  name: string;
   rootHash: `0x${string}`;
   parentA: bigint;
   parentB: bigint;
@@ -20,6 +22,9 @@ export type AgentRow = {
   rounds: bigint;
 };
 
+export const displayNameOf = (row: AgentRow): string =>
+  row.name && row.name.length > 0 ? row.name : `Agent #${row.id.toString()}`;
+
 export function useTotalMinted() {
   return useReadContract({
     ...agentGenomeContract,
@@ -28,6 +33,8 @@ export function useTotalMinted() {
   });
 }
 
+const CALLS_PER_AGENT = 5;
+
 function useAgentRows(ids: bigint[]) {
   const calls = useMemo(() => {
     return ids.flatMap((id) => [
@@ -35,6 +42,7 @@ function useAgentRows(ids: bigint[]) {
       { ...agentGenomeContract, functionName: "ownerOf", args: [id] } as const,
       { ...reputationOracleContract, functionName: "scoreOf", args: [id] } as const,
       { ...reputationOracleContract, functionName: "roundCountOf", args: [id] } as const,
+      { ...agentRegistryContract, functionName: "nameOf", args: [id] } as const,
     ]);
   }, [ids]);
 
@@ -49,10 +57,12 @@ function useAgentRows(ids: bigint[]) {
     const rows: AgentRow[] = [];
     for (let i = 0; i < ids.length; i++) {
       const id = ids[i]!;
-      const agentRes = data[i * 4];
-      const ownerRes = data[i * 4 + 1];
-      const scoreRes = data[i * 4 + 2];
-      const roundsRes = data[i * 4 + 3];
+      const base = i * CALLS_PER_AGENT;
+      const agentRes = data[base];
+      const ownerRes = data[base + 1];
+      const scoreRes = data[base + 2];
+      const roundsRes = data[base + 3];
+      const nameRes = data[base + 4];
       if (
         agentRes?.status !== "success" ||
         ownerRes?.status !== "success"
@@ -67,6 +77,7 @@ function useAgentRows(ids: bigint[]) {
       };
       rows.push({
         id,
+        name: nameRes?.status === "success" ? (nameRes.result as string) : "",
         rootHash: agent.rootHash,
         parentA: agent.parentA,
         parentB: agent.parentB,

@@ -1,6 +1,7 @@
 import {
   agentGenomeAbi,
   agentMemoryAbi,
+  agentRegistryAbi,
   breedingContractAbi,
   predictionRoundAbi,
   reputationOracleAbi,
@@ -36,4 +37,9 @@ export const predictionRoundContract = {
 export const agentMemoryContract = {
   address: ADDRESSES.agentMemory,
   abi: agentMemoryAbi,
+} as const;
+
+export const agentRegistryContract = {
+  address: ADDRESSES.agentRegistry,
+  abi: agentRegistryAbi,
 } as const;
