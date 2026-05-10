@@ -25,3 +25,8 @@ npm-debug.log*
 *.swo
 .DS_Store
 Thumbs.db
+
+# Reference checkouts (ETHGlobal Open Agents repos used as design refs)
+/provance/
+/swarmex/
+/common-os/

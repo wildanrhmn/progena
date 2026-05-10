@@ -13,12 +13,12 @@ import { privateKeyToAccount } from "viem/accounts";
 import {
   GenomeStorage,
   agentGenomeAbi,
-  createZgStorageBackend,
   hashGenome,
   zgGalileo,
   zgMainnet,
   type RootHash,
 } from "@progena/sdk";
+import { createZgStorageBackend } from "@progena/sdk/node";
 import { loadConfig } from "../config.js";
 import { createLogger } from "../lib/logger.js";
 import { GENESIS_AGENTS, buildGenesisGenome } from "./genesis.js";

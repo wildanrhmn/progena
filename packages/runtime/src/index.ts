@@ -1,11 +1,7 @@
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import {
-  GenomeStorage,
-  createZgStorageBackend,
-  zgGalileo,
-  zgMainnet,
-} from "@progena/sdk";
+import { GenomeStorage, zgGalileo, zgMainnet } from "@progena/sdk";
+import { createZgStorageBackend } from "@progena/sdk/node";
 import { loadConfig } from "./config.js";
 import { createLogger } from "./lib/logger.js";
 import { startBreedingWatcher } from "./indexer/index.js";
