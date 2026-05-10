@@ -21,7 +21,7 @@
     "vitest": "^2.1.0"
   },
   "dependencies": {
-    "@progena/sdk": "file:../progena-sdk",
+    "@progena/sdk": "*",
     "dotenv": "^16.4.5",
     "viem": "^2.21.0",
     "zod": "^3.23.8"
