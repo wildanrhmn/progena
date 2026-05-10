@@ -37,6 +37,8 @@ export default buildModule("Progena", (m) => {
 
   const agentMemory = m.contract("AgentMemory", [initialOwner, agentGenome]);
 
+  const agentRegistry = m.contract("AgentRegistry", [agentGenome]);
+
   m.call(agentGenome, "setBreedingContract", [breedingContract]);
   m.call(agentGenome, "setGenomeWriter", [genomeWriter]);
   m.call(reputationOracle, "setReporter", [predictionRound]);
@@ -49,5 +51,6 @@ export default buildModule("Progena", (m) => {
     reputationOracle,
     predictionRound,
     agentMemory,
+    agentRegistry,
   };
 });

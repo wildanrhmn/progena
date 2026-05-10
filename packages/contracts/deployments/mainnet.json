@@ -10,7 +10,8 @@
     "RoyaltySplitter": "0xB95865FBde4385c607EF95f768DE76f44cf42efA",
     "BreedingContract": "0x85985eDe5884C64fBf8daB26141ab2505eccadaf",
     "PredictionRound": "0x17e111593242AC706509D7e9EB676A5602277Df4",
-    "AgentMemory": "0x55CeB5f91B1806B2F52c8eeAE3181632B90Bb449"
+    "AgentMemory": "0x55CeB5f91B1806B2F52c8eeAE3181632B90Bb449",
+    "AgentRegistry": "0x4560a71a07cf8172cfb0bf61b96a5480255cec8d"
   },
   "params": {
     "baseURI": "https://api.progena.xyz/agent/",
