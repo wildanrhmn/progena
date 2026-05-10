@@ -75,9 +75,23 @@ export function StudFeePanel({ agentId, isOwner }: Props) {
           </div>
         )}
         {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
-        {!editing && fee === 0n && (
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Free for everyone — including non-owners
+        {!editing && (
+          <p className="mt-2 max-w-xs text-[11px] leading-relaxed text-muted-foreground">
+            {fee === 0n ? (
+              <>
+                <span className="text-foreground/80">Free to breed with.</span>{" "}
+                Set a fee to charge other breeders that don't own this agent.
+              </>
+            ) : (
+              <>
+                <span className="text-foreground/80">
+                  Charged to other breeders
+                </span>{" "}
+                using this agent as a parent (waived if they own it). Routes
+                through RoyaltySplitter to you and every ancestor in the
+                lineage.
+              </>
+            )}
           </p>
         )}
       </div>

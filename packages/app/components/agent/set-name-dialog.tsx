@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { CircleNotch, PencilSimple, X } from "@phosphor-icons/react";
 import { agentRegistryContract } from "@/lib/contracts";
@@ -51,20 +52,40 @@ export function SetNameButton({ agentId, onSuccess }: Props) {
         Claim name
       </button>
 
-      {open && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => {
-              if (!isPending && !confirming) {
-                setOpen(false);
-                reset();
-              }
-            }}
-            aria-label="Close"
-          />
-          <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950 p-6 shadow-2xl">
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {open && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+                <motion.button
+                  type="button"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                  onClick={() => {
+                    if (!isPending && !confirming) {
+                      setOpen(false);
+                      reset();
+                    }
+                  }}
+                  aria-label="Close"
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: 24, scale: 0.94 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 12, scale: 0.97 }}
+                  transition={{
+                    duration: 0.32,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                  className="relative w-full max-w-md overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950 p-6 shadow-2xl"
+                >
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent"
+                  />
             <button
               onClick={() => {
                 if (!isPending && !confirming) {
@@ -143,11 +164,13 @@ export function SetNameButton({ agentId, onSuccess }: Props) {
                     ? "Recording…"
                     : "Claim on-chain"}
               </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
     </>
   );
 }
