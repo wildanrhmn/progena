@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+:root {
+  --background: oklch(0.07 0 0);
+  --foreground: oklch(0.96 0 0);
+  --muted: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.55 0 0);
+  --border: oklch(0.18 0 0);
+  --border-soft: oklch(0.13 0 0);
+  --accent-life: oklch(0.74 0.18 162);
+  --accent-lineage: oklch(0.7 0.18 290);
+  --danger: oklch(0.66 0.21 25);
+  --radius: 0.625rem;
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
+  --color-accent-life: var(--accent-life);
+  --color-accent-lineage: var(--accent-lineage);
+  --color-danger: var(--danger);
+}
+
+html,
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-life);
+  color: var(--background);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
