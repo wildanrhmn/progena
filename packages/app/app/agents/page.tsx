@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { useTotalMinted, useAgents } from "@/hooks/use-agents";
+import { useNames } from "@/hooks/use-names";
 import { AgentCard } from "@/components/agent-card";
 import { SiteHeader } from "@/components/site-header";
 import { CircleNotch, GitBranch, Sparkle, Users } from "@phosphor-icons/react";
@@ -9,6 +11,15 @@ import { motion } from "framer-motion";
 export default function AgentsPage() {
   const { agents, isLoading, error } = useAgents(60);
   const { data: total } = useTotalMinted();
+
+  const parentIds = useMemo(
+    () =>
+      agents
+        .filter((a) => a.generation > 0)
+        .flatMap((a) => [a.parentA, a.parentB]),
+    [agents]
+  );
+  const parentNames = useNames(parentIds);
 
   const genesisCount = agents.filter((a) => a.generation === 0).length;
   const bredCount = agents.length - genesisCount;
@@ -77,7 +88,12 @@ export default function AgentsPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {agents.map((agent, i) => (
-              <AgentCard key={agent.id.toString()} agent={agent} index={i} />
+              <AgentCard
+                key={agent.id.toString()}
+                agent={agent}
+                index={i}
+                parentNames={parentNames}
+              />
             ))}
           </div>
         )}

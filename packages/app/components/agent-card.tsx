@@ -34,11 +34,22 @@ const tagForGen = (gen: number): { label: string; tone: string } => {
   };
 };
 
-export function AgentCard({ agent, index = 0 }: { agent: AgentRow; index?: number }) {
+type AgentCardProps = {
+  agent: AgentRow;
+  index?: number;
+  parentNames?: Map<string, string>;
+};
+
+export function AgentCard({ agent, index = 0, parentNames }: AgentCardProps) {
   const isGenesis = agent.generation === 0;
   const tag = tagForGen(agent.generation);
   const sigil = makeBlockie(agent.rootHash);
   const ownerSigil = makeBlockie(agent.owner);
+  const parentAName = parentNames?.get(agent.parentA.toString());
+  const parentBName = parentNames?.get(agent.parentB.toString());
+  const lineageDisplay = isGenesis
+    ? "genesis"
+    : `${parentAName ?? `#${agent.parentA.toString()}`} × ${parentBName ?? `#${agent.parentB.toString()}`}`;
 
   return (
     <motion.div
@@ -114,10 +125,8 @@ export function AgentCard({ agent, index = 0 }: { agent: AgentRow; index?: numbe
               <GitFork size={11} weight="bold" />
               Lineage
             </div>
-            <div className="text-right font-mono text-foreground">
-              {isGenesis
-                ? "genesis"
-                : `#${agent.parentA.toString()} × #${agent.parentB.toString()}`}
+            <div className="truncate text-right text-foreground">
+              {lineageDisplay}
             </div>
 
             <div className="text-white/55">Rounds</div>

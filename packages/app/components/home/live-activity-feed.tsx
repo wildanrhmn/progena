@@ -3,7 +3,9 @@
 import Link from "next/link";
 import makeBlockie from "ethereum-blockies-base64";
 import { ArrowUpRight } from "@phosphor-icons/react";
+import { useMemo } from "react";
 import { displayNameOf, useAgents } from "@/hooks/use-agents";
+import { useNames } from "@/hooks/use-names";
 import {
   formatRelative,
   shortAddress,
@@ -19,6 +21,14 @@ function eventLabel(generation: number): { label: string; tone: string } {
 
 export function LiveActivityFeed() {
   const { agents, isLoading } = useAgents(8);
+  const parentIds = useMemo(
+    () =>
+      agents
+        .filter((a) => a.generation > 0)
+        .flatMap((a) => [a.parentA, a.parentB]),
+    [agents]
+  );
+  const parentNames = useNames(parentIds);
 
   return (
     <section
@@ -61,7 +71,7 @@ export function LiveActivityFeed() {
               const lineage =
                 agent.generation === 0
                   ? "genesis seed"
-                  : `#${agent.parentA.toString()} × #${agent.parentB.toString()}`;
+                  : `${parentNames.get(agent.parentA.toString()) ?? `#${agent.parentA.toString()}`} × ${parentNames.get(agent.parentB.toString()) ?? `#${agent.parentB.toString()}`}`;
               return (
                 <Link
                   key={agent.id.toString()}
@@ -93,7 +103,7 @@ export function LiveActivityFeed() {
                     </p>
                   </div>
 
-                  <p className="font-mono text-xs text-foreground/85">
+                  <p className="truncate text-xs text-foreground/85">
                     {lineage}
                   </p>
 
