@@ -5,3 +5,5 @@ export { reputationOracleAbi } from "./reputationOracle.js";
 export { predictionRoundAbi } from "./predictionRound.js";
 export { agentMemoryAbi } from "./agentMemory.js";
 export { agentRegistryAbi } from "./agentRegistry.js";
+export { roundQuestionCatalogAbi } from "./roundQuestionCatalog.js";
+export { agentTraitCatalogAbi } from "./agentTraitCatalog.js";

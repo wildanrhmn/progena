@@ -2,9 +2,11 @@ import {
   agentGenomeAbi,
   agentMemoryAbi,
   agentRegistryAbi,
+  agentTraitCatalogAbi,
   breedingContractAbi,
   predictionRoundAbi,
   reputationOracleAbi,
+  roundQuestionCatalogAbi,
   royaltySplitterAbi,
 } from "@progena/sdk";
 import { ADDRESSES } from "./chain";
@@ -42,4 +44,14 @@ export const agentMemoryContract = {
 export const agentRegistryContract = {
   address: ADDRESSES.agentRegistry,
   abi: agentRegistryAbi,
+} as const;
+
+export const roundQuestionCatalogContract = {
+  address: ADDRESSES.roundQuestionCatalog,
+  abi: roundQuestionCatalogAbi,
+} as const;
+
+export const agentTraitCatalogContract = {
+  address: ADDRESSES.agentTraitCatalog,
+  abi: agentTraitCatalogAbi,
 } as const;

@@ -9,6 +9,8 @@ const DEFAULT_ADDRESSES = {
   predictionRound: "0x17e111593242AC706509D7e9EB676A5602277Df4",
   agentMemory: "0x55CeB5f91B1806B2F52c8eeAE3181632B90Bb449",
   agentRegistry: "0x4560a71a07cf8172cfb0bf61b96a5480255cec8d",
+  roundQuestionCatalog: "0xeca2a337a639a6214197a78090a83422351a4e28",
+  agentTraitCatalog: "0xa8b41b80948a96515d5b8e9c0b686dc40a47dec5",
 } as const satisfies Record<string, Address>;
 
 const fromEnvOrDefault = (envName: string, fallback: Address): Address => {
@@ -51,8 +53,26 @@ export const ADDRESSES = {
     "NEXT_PUBLIC_AGENT_REGISTRY",
     DEFAULT_ADDRESSES.agentRegistry
   ),
+  roundQuestionCatalog: fromEnvOrDefault(
+    "NEXT_PUBLIC_ROUND_QUESTION_CATALOG",
+    DEFAULT_ADDRESSES.roundQuestionCatalog
+  ),
+  agentTraitCatalog: fromEnvOrDefault(
+    "NEXT_PUBLIC_AGENT_TRAIT_CATALOG",
+    DEFAULT_ADDRESSES.agentTraitCatalog
+  ),
 } as const;
 
 export const EXPLORER_URL = chain.blockExplorers?.default?.url ?? "https://chainscan.0g.ai";
 export const RPC_URL =
   process.env.NEXT_PUBLIC_RPC_URL ?? chain.rpcUrls.default.http[0]!;
+
+const DEFAULT_INDEXER_URL =
+  NETWORK_NAME === "galileo"
+    ? "https://indexer-storage-testnet-turbo.0g.ai"
+    : "https://indexer-storage-turbo.0g.ai";
+
+export const INDEXER_URL =
+  process.env.NEXT_PUBLIC_INDEXER_URL ??
+  process.env.ZG_INDEXER_URL ??
+  DEFAULT_INDEXER_URL;

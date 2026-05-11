@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@progena/sdk"],
+  serverExternalPackages: ["@0gfoundation/0g-ts-sdk", "ethers"],
   experimental: {
     optimizePackageImports: ["@phosphor-icons/react", "wagmi", "viem"],
   },

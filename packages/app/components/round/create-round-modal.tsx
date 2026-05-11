@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { parseEther } from "viem";
 import { useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { CircleNotch, X } from "@phosphor-icons/react";
-import { predictionRoundContract } from "@/lib/contracts";
-import { registerQuestion } from "@/lib/round-questions";
+import {
+  predictionRoundContract,
+  roundQuestionCatalogContract,
+} from "@/lib/contracts";
+import { questionHashOf } from "@/lib/round-questions";
 import { useNextRoundId } from "@/hooks/use-rounds";
 
 function toUnix(local: string): bigint {
@@ -29,33 +32,71 @@ type Props = {
 
 export function CreateRoundModal({ open, onClose, onSuccess }: Props) {
   const router = useRouter();
-  const { data: nextRaw } = useNextRoundId();
+  const { data: nextRaw, refetch: refetchNext } = useNextRoundId();
 
   const [question, setQuestion] = useState("");
   const [commitAt, setCommitAt] = useState(nowPlus(30));
   const [revealAt, setRevealAt] = useState(nowPlus(60));
   const [entryFee, setEntryFee] = useState("0.01");
   const [error, setError] = useState<string | null>(null);
+  const [newRoundId, setNewRoundId] = useState<bigint | undefined>();
 
-  const { writeContract, data: txHash, isPending, reset } = useWriteContract();
-  const { isLoading: confirming, isSuccess } = useWaitForTransactionReceipt({
-    hash: txHash,
-  });
+  const {
+    writeContract: writeCreate,
+    data: createTx,
+    isPending: createPending,
+    reset: resetCreate,
+  } = useWriteContract();
+  const { isLoading: createConfirming, isSuccess: createSuccess } =
+    useWaitForTransactionReceipt({ hash: createTx });
 
-  if (isSuccess && open) {
-    const next = nextRaw ? BigInt(nextRaw) - 1n : undefined;
+  const {
+    writeContract: writePublish,
+    data: publishTx,
+    isPending: publishPending,
+    reset: resetPublish,
+  } = useWriteContract();
+  const { isLoading: publishConfirming, isSuccess: publishSuccess } =
+    useWaitForTransactionReceipt({ hash: publishTx });
+
+  useEffect(() => {
+    if (!createSuccess || newRoundId !== undefined) return;
+    refetchNext().then(({ data }) => {
+      if (data) {
+        const id = BigInt(data) - 1n;
+        setNewRoundId(id);
+        writePublish({
+          ...roundQuestionCatalogContract,
+          functionName: "publish",
+          args: [id, question.trim()],
+        });
+      }
+    });
+  }, [createSuccess, newRoundId, refetchNext, writePublish, question]);
+
+  useEffect(() => {
+    if (!publishSuccess || newRoundId === undefined) return;
     onSuccess?.();
-    setTimeout(() => {
-      router.push(next ? `/rounds/${next}` : "/rounds");
+    const id = newRoundId.toString();
+    const t = setTimeout(() => {
+      router.push(`/rounds/${id}`);
       onClose();
-      reset();
+      resetCreate();
+      resetPublish();
+      setNewRoundId(undefined);
     }, 400);
-  }
+    return () => clearTimeout(t);
+  }, [publishSuccess, newRoundId, router, onClose, onSuccess, resetCreate, resetPublish]);
+
+  const inFlight =
+    createPending || createConfirming || publishPending || publishConfirming;
 
   const close = () => {
-    if (isPending || confirming) return;
+    if (inFlight) return;
     onClose();
-    reset();
+    resetCreate();
+    resetPublish();
+    setNewRoundId(undefined);
     setError(null);
   };
 
@@ -85,8 +126,8 @@ export function CreateRoundModal({ open, onClose, onSuccess }: Props) {
       setError("Reveal deadline must be after commit deadline");
       return;
     }
-    const hash = registerQuestion(trimmed);
-    writeContract({
+    const hash = questionHashOf(trimmed);
+    writeCreate({
       ...predictionRoundContract,
       functionName: "createRound",
       args: [hash, commitDeadline, revealDeadline, feeWei],
@@ -188,24 +229,26 @@ export function CreateRoundModal({ open, onClose, onSuccess }: Props) {
             <div className="mt-6 flex items-center justify-end gap-2 border-t border-zinc-800/80 pt-5">
               <button
                 onClick={close}
-                disabled={isPending || confirming}
+                disabled={inFlight}
                 className="rounded-full px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={submit}
-                disabled={isPending || confirming}
+                disabled={inFlight}
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {(isPending || confirming) && (
-                  <CircleNotch size={14} className="animate-spin" />
-                )}
-                {isPending
-                  ? "Confirm in wallet…"
-                  : confirming
-                    ? "Creating…"
-                    : "Create round"}
+                {inFlight && <CircleNotch size={14} className="animate-spin" />}
+                {createPending
+                  ? "Confirm create in wallet…"
+                  : createConfirming
+                    ? "Creating round on-chain…"
+                    : publishPending
+                      ? "Confirm publish in wallet…"
+                      : publishConfirming
+                        ? "Publishing question text…"
+                        : "Create round"}
               </button>
             </div>
           </motion.div>

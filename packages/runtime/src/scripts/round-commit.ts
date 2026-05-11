@@ -6,7 +6,9 @@ import { createZgStorageBackend } from "@progena/sdk/node";
 import { loadConfig } from "../config.js";
 import { createLogger } from "../lib/logger.js";
 import { createFileCommitStore } from "../round/commit-store.js";
+import { execSync } from "node:child_process";
 import {
+  createOpenClawInferenceClient,
   createStubInferenceClient,
   createZGComputeInferenceClient,
   type InferenceClient,
@@ -24,10 +26,27 @@ import type { Logger } from "../lib/logger.js";
 import { bigintArg, listArg } from "./args.js";
 import { getRound } from "./round-store.js";
 
+function openclawAvailable(bin = "openclaw"): boolean {
+  try {
+    execSync(`${bin} --version`, { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function buildInferenceClient(
   config: ReturnType<typeof loadConfig>,
   logger: Logger
 ): Promise<{ client: InferenceClient; mode: string }> {
+  if (process.env.INFERENCE_MODE !== "compute" && openclawAvailable()) {
+    logger.info("using OpenClaw orchestration (routes inference through the local proxy → 0G Compute)");
+    return {
+      client: createOpenClawInferenceClient({ logger }),
+      mode: "OpenClaw → 0G Compute (via proxy)",
+    };
+  }
+
   try {
     const ctx = await connectBroker({
       rpcUrl: config.rpcUrl,
@@ -46,13 +65,13 @@ async function buildInferenceClient(
     await ensureProviderFunded(ctx, providerAddress, config.zgComputeProviderFundOg, logger);
     return {
       client: createZGComputeInferenceClient({ ctx, providerAddress, logger }),
-      mode: `0G Compute · provider ${providerAddress}`,
+      mode: `0G Compute direct · provider ${providerAddress}`,
     };
   } catch (err) {
-    logger.warn("0G Compute setup failed, falling back to stub", {
+    logger.warn("inference setup failed, falling back to stub", {
       error: err instanceof Error ? err.message : String(err),
     });
-    return { client: createStubInferenceClient(), mode: "stub (compute unavailable)" };
+    return { client: createStubInferenceClient(), mode: "stub (no inference backend)" };
   }
 }
 

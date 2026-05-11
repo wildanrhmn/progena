@@ -51,8 +51,7 @@ export class OpenClawAgent {
   async ask(message: string): Promise<AskResult> {
     const ws = await this.ensureReady();
     const bin = this.opts.openclawBin ?? "openclaw";
-    const thinking = this.opts.thinking ?? "high";
-    const args = ["agent", "--message", message, "--thinking", thinking];
+    const args = ["infer", "model", "run", "--prompt", message];
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
@@ -63,7 +62,6 @@ export class OpenClawAgent {
 
     this.opts.logger?.info?.("invoking openclaw", {
       bin,
-      thinking,
       workspace: ws.root,
     });
 
@@ -77,7 +75,8 @@ export class OpenClawAgent {
       });
     }
 
-    return { text: result.stdout, stderr: result.stderr, exitCode: result.code };
+    const text = extractCompletion(result.stdout);
+    return { text, stderr: result.stderr, exitCode: result.code };
   }
 
   async dispose(): Promise<void> {
@@ -86,6 +85,16 @@ export class OpenClawAgent {
       this.workspace = null;
     }
   }
+}
+
+function extractCompletion(stdout: string): string {
+  const lines = stdout.split(/\r?\n/);
+  const headerEnd = lines.findIndex((l) => /^outputs:\s*\d+/.test(l.trim()));
+  if (headerEnd === -1) return stdout.trim();
+  return lines
+    .slice(headerEnd + 1)
+    .join("\n")
+    .trim();
 }
 
 const defaultSpawnFn: SpawnFn = (bin, args, options) =>

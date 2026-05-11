@@ -8,11 +8,21 @@ import {
   ArrowRight,
   CheckCircle,
   CircleNotch,
+  Lightning,
+  Warning,
+  Wrench,
   X,
 } from "@phosphor-icons/react";
 import { BirthAnimation, type Phase } from "./birth-animation";
 import { displayNameOf, type AgentRow } from "@/hooks/use-agents";
-import { agentRegistryContract } from "@/lib/contracts";
+import {
+  agentRegistryContract,
+  agentTraitCatalogContract,
+} from "@/lib/contracts";
+import {
+  useChildFinalization,
+  useChildTraits,
+} from "@/hooks/use-child-traits";
 
 const NAME_RE = /^[A-Za-z0-9 _-]{2,32}$/;
 
@@ -20,22 +30,37 @@ type Props = {
   open: boolean;
   parentA: AgentRow;
   parentB: AgentRow;
-  /** Child rootHash to feed the reveal phase. */
   childRootHash?: `0x${string}`;
-  /** Newly-minted child tokenId; enables the in-overlay name claim form. */
   childTokenId?: bigint;
   replayKey?: number;
   dismissable?: boolean;
-  /** Called once name claim succeeds (and after a tiny delay so the user
-   *  sees the success state). Wire this to navigate to the agent page. */
+  previewMode?: boolean;
   onNameClaimed?: () => void;
-  /** Called when the user explicitly closes the overlay. */
   onClose?: () => void;
 };
 
+const PREVIEW_ROOT_HASH =
+  "0x4242424242424242424242424242424242424242424242424242424242424242" as const;
+const PREVIEW_TRAITS = {
+  version: 1 as const,
+  skills: ["price-history", "macro-context", "calibration", "risk-clamp"],
+  tools: ["fetch_price_history", "fetch_macro_indicators", "estimate_uncertainty"],
+  soulPreview:
+    "I am a deterministic child of Alpha × Beta. I weight macro signals over near-term momentum and clamp my predictions to avoid overconfidence.",
+  generation: 1,
+};
+type PreviewStage =
+  | "running"
+  | "finalizing"
+  | "extracting"
+  | "publishing"
+  | "published";
+
+type ExtendedPhase = Phase | "finalizing" | "extracting" | "publishing" | "published";
+
 type LogStep = {
   label: string;
-  during: Phase[];
+  during: ExtendedPhase[];
 };
 
 const buildSteps = (parentA: AgentRow, parentB: AgentRow): LogStep[] => [
@@ -47,21 +72,36 @@ const buildSteps = (parentA: AgentRow, parentB: AgentRow): LogStep[] => [
     label: `Reading ${displayNameOf(parentB)}'s genome from 0G Storage`,
     during: ["converging"],
   },
-  { label: "Decrypting parent shards", during: ["mixing"] },
-  { label: "Crossing genes via 0G Compute", during: ["mixing"] },
+  { label: "Crossing genes deterministically", during: ["mixing"] },
   { label: "Sharding child genome to 0G Storage", during: ["revealing"] },
   {
     label: "Anchoring rootHash on AgentGenome",
-    during: ["revealing", "settling"],
+    during: ["revealing", "settling", "done"],
+  },
+  {
+    label: "Awaiting daemon finalization on 0G Chain",
+    during: ["finalizing"],
+  },
+  {
+    label: "Extracting inherited skills + tools",
+    during: ["extracting"],
+  },
+  {
+    label: "Publishing capabilities to AgentTraitCatalog",
+    during: ["publishing", "published"],
   },
 ];
 
-const STATUS_FOR_PHASE: Record<Phase, string> = {
+const STATUS_FOR_PHASE: Record<ExtendedPhase, string> = {
   converging: "Pairing parents…",
   mixing: "Waiting for the chain to seal the genome…",
   revealing: "Hatching",
   settling: "Born",
-  done: "Born. Claim a name to make it permanent.",
+  done: "Born — waiting for daemon to seal the new genome…",
+  finalizing: "Daemon synthesizing genome on 0G…",
+  extracting: "Reading inherited capabilities…",
+  publishing: "Publishing capabilities — confirm in wallet",
+  published: "Capabilities published. Claim a name to make it permanent.",
 };
 
 export function BirthOverlay({
@@ -72,12 +112,91 @@ export function BirthOverlay({
   childTokenId,
   replayKey,
   dismissable = false,
+  previewMode = false,
   onNameClaimed,
   onClose,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("converging");
   const [name, setName] = useState("");
   const [nameValidation, setNameValidation] = useState<string | null>(null);
+  const [previewStage, setPreviewStage] = useState<PreviewStage>("running");
+
+  const realFinalization = useChildFinalization(
+    !previewMode && open ? childTokenId : undefined
+  );
+  const realTraits = useChildTraits(
+    previewMode ? undefined : childTokenId,
+    !previewMode && open && realFinalization.finalized
+  );
+
+  const {
+    writeContract: writePublish,
+    data: publishTxHash,
+    isPending: realPublishPending,
+    reset: resetPublish,
+    error: publishError,
+  } = useWriteContract();
+  const { isLoading: realPublishConfirming, isSuccess: realPublishSuccess } =
+    useWaitForTransactionReceipt({ hash: publishTxHash });
+
+  const [publishFired, setPublishFired] = useState(false);
+
+  const finalized = previewMode ? previewStage !== "running" : realFinalization.finalized;
+  const finalizedRoot = previewMode
+    ? previewStage !== "running"
+      ? PREVIEW_ROOT_HASH
+      : undefined
+    : realFinalization.rootHash;
+  const traits = previewMode
+    ? previewStage === "extracting" ||
+      previewStage === "publishing" ||
+      previewStage === "published"
+      ? PREVIEW_TRAITS
+      : undefined
+    : realTraits.traits;
+  const traitsJson = previewMode ? undefined : realTraits.traitsJson;
+  const traitsLoading = previewMode ? false : realTraits.isLoading;
+  const traitsError = previewMode ? null : realTraits.error;
+  const publishPending = previewMode ? previewStage === "publishing" : realPublishPending;
+  const publishConfirming = previewMode ? false : realPublishConfirming;
+  const publishSuccess = previewMode
+    ? previewStage === "published"
+    : realPublishSuccess;
+
+  useEffect(() => {
+    if (previewMode || !open || !traitsJson || !childTokenId || publishFired) return;
+    setPublishFired(true);
+    writePublish({
+      ...agentTraitCatalogContract,
+      functionName: "publish",
+      args: [childTokenId, traitsJson],
+    });
+  }, [previewMode, open, traitsJson, childTokenId, publishFired, writePublish]);
+
+  useEffect(() => {
+    if (!previewMode || !open) {
+      setPreviewStage("running");
+      return;
+    }
+    if (phase !== "done") return;
+    const timers = [
+      setTimeout(() => setPreviewStage("finalizing"), 600),
+      setTimeout(() => setPreviewStage("extracting"), 3200),
+      setTimeout(() => setPreviewStage("publishing"), 5400),
+      setTimeout(() => setPreviewStage("published"), 7800),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [previewMode, open, phase, replayKey]);
+
+  const extendedPhase: ExtendedPhase = (() => {
+    if (publishSuccess) return "published";
+    if (publishPending || publishConfirming) return "publishing";
+    if (traits && !publishFired && !previewMode) return "extracting";
+    if (traits && previewMode && previewStage === "extracting") return "extracting";
+    if (traitsLoading && finalized) return "extracting";
+    if (phase === "done" && !finalized) return "finalizing";
+    return phase;
+  })();
 
   const {
     writeContract: writeName,
@@ -93,9 +212,11 @@ export function BirthOverlay({
       setPhase("converging");
       setName("");
       setNameValidation(null);
+      setPublishFired(false);
       resetName();
+      resetPublish();
     }
-  }, [open, replayKey, resetName]);
+  }, [open, replayKey, resetName, resetPublish]);
 
   useEffect(() => {
     if (nameSuccess) {
@@ -109,7 +230,8 @@ export function BirthOverlay({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       const canClose =
-        (dismissable || phase === "done") && !(namePending || nameConfirming);
+        (dismissable || extendedPhase === "published") &&
+        !(namePending || nameConfirming);
       if (canClose) onClose?.();
     };
     window.addEventListener("keydown", onKey);
@@ -123,9 +245,15 @@ export function BirthOverlay({
   if (typeof document === "undefined") return null;
 
   const steps = buildSteps(parentA, parentB);
-  const canClaim = phase === "done" && childTokenId !== undefined && !nameSuccess;
+  const canClaim =
+    !previewMode &&
+    extendedPhase === "published" &&
+    childTokenId !== undefined &&
+    !nameSuccess;
   const claiming = namePending || nameConfirming;
-  const effectivelyDismissable = (dismissable || phase === "done") && !claiming;
+  const effectivelyDismissable =
+    (dismissable || extendedPhase === "published" || previewMode) && !claiming;
+  const previewComplete = previewMode && extendedPhase === "published";
 
   const submitName = () => {
     if (childTokenId === undefined) return;
@@ -196,7 +324,7 @@ export function BirthOverlay({
             className="relative mx-auto flex w-full max-w-6xl items-stretch gap-8 px-8"
           >
             <div className="hidden w-72 shrink-0 flex-col justify-center lg:flex">
-              <OperationsLog steps={steps} phase={phase} />
+              <OperationsLog steps={steps} phase={extendedPhase} />
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col items-center">
@@ -215,7 +343,7 @@ export function BirthOverlay({
                 <BirthAnimation
                   parentARootHash={parentA.rootHash}
                   parentBRootHash={parentB.rootHash}
-                  childRootHash={childRootHash}
+                  childRootHash={previewMode ? PREVIEW_ROOT_HASH : childRootHash}
                   replayKey={replayKey}
                   onPhaseChange={setPhase}
                 />
@@ -226,34 +354,51 @@ export function BirthOverlay({
                 <AnimatePresence mode="wait">
                   {!canClaim && !nameSuccess && (
                     <motion.div
-                      key={`status-${phase}`}
+                      key={`status-${extendedPhase}`}
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -4 }}
                       transition={{ duration: 0.35 }}
-                      className="flex items-center gap-2 text-xs"
+                      className="flex w-full flex-col items-center gap-3"
                     >
-                      {phase === "settling" ? (
-                        <CheckCircle
-                          size={14}
-                          weight="bold"
-                          className="text-accent-life"
-                        />
-                      ) : (
-                        <CircleNotch
-                          size={14}
-                          className="animate-spin text-muted-foreground"
-                        />
+                      <div className="flex items-center gap-2 text-xs">
+                        {extendedPhase === "settling" ? (
+                          <CheckCircle
+                            size={14}
+                            weight="bold"
+                            className="text-accent-life"
+                          />
+                        ) : (
+                          <CircleNotch
+                            size={14}
+                            className="animate-spin text-muted-foreground"
+                          />
+                        )}
+                        <span
+                          className={
+                            extendedPhase === "settling"
+                              ? "text-accent-life"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {STATUS_FOR_PHASE[extendedPhase]}
+                        </span>
+                      </div>
+                      {traits && (
+                        <CapabilityChips traits={traits} />
                       )}
-                      <span
-                        className={
-                          phase === "settling"
-                            ? "text-accent-life"
-                            : "text-muted-foreground"
-                        }
-                      >
-                        {STATUS_FOR_PHASE[phase]}
-                      </span>
+                      {publishError && (
+                        <div className="flex items-start gap-2 rounded-md border border-red-900/50 bg-red-950/30 px-3 py-2 text-[11px] text-red-300">
+                          <Warning size={12} weight="bold" className="mt-0.5 shrink-0" />
+                          <span>{publishError.message.split("\n")[0]}</span>
+                        </div>
+                      )}
+                      {traitsError && (
+                        <div className="flex items-start gap-2 rounded-md border border-amber-900/50 bg-amber-950/30 px-3 py-2 text-[11px] text-amber-300">
+                          <Warning size={12} weight="bold" className="mt-0.5 shrink-0" />
+                          <span>{traitsError.message}</span>
+                        </div>
+                      )}
                     </motion.div>
                   )}
 
@@ -329,6 +474,28 @@ export function BirthOverlay({
                       <ArrowRight size={14} weight="bold" />
                     </motion.div>
                   )}
+
+                  {previewComplete && (
+                    <motion.div
+                      key="preview-complete"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.4 }}
+                      className="flex w-full flex-col items-center gap-3"
+                    >
+                      <div className="flex items-center gap-2 text-sm text-accent-life">
+                        <CheckCircle size={16} weight="bold" />
+                        Preview complete — no chain writes, no tokens spent
+                      </div>
+                      <button
+                        onClick={() => onClose?.()}
+                        className="rounded-full border border-zinc-700 bg-zinc-900/60 px-4 py-1.5 text-xs text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+                      >
+                        Close preview
+                      </button>
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
             </div>
@@ -338,7 +505,7 @@ export function BirthOverlay({
                 parentA={parentA}
                 parentB={parentB}
                 phase={phase}
-                childRootHash={childRootHash}
+                childRootHash={finalizedRoot ?? childRootHash}
                 childTokenId={childTokenId}
               />
             </div>
@@ -364,14 +531,80 @@ export function BirthOverlay({
   );
 }
 
+function CapabilityChips({ traits }: { traits: { skills: string[]; tools: string[]; soulPreview: string } }) {
+  const visibleSkills = traits.skills.slice(0, 4);
+  const moreSkills = traits.skills.length - visibleSkills.length;
+  const visibleTools = traits.tools.slice(0, 5);
+  const moreTools = traits.tools.length - visibleTools.length;
+
+  if (visibleSkills.length === 0 && visibleTools.length === 0 && !traits.soulPreview) {
+    return null;
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="w-full space-y-2"
+    >
+      <div className="text-center text-[10px] uppercase tracking-[0.18em] text-white/55">
+        Inherited
+      </div>
+      {visibleSkills.length > 0 && (
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          <Lightning size={10} weight="bold" className="text-accent-life" />
+          {visibleSkills.map((s) => (
+            <span
+              key={s}
+              className="rounded-full border border-accent-life/40 bg-accent-life/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-accent-life"
+            >
+              {s}
+            </span>
+          ))}
+          {moreSkills > 0 && (
+            <span className="text-[10px] text-muted-foreground">+{moreSkills}</span>
+          )}
+        </div>
+      )}
+      {visibleTools.length > 0 && (
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          <Wrench size={10} weight="bold" className="text-zinc-400" />
+          {visibleTools.map((t) => (
+            <span
+              key={t}
+              className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-0.5 text-[10px] text-zinc-300"
+            >
+              {t}
+            </span>
+          ))}
+          {moreTools > 0 && (
+            <span className="text-[10px] text-muted-foreground">+{moreTools}</span>
+          )}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 function OperationsLog({
   steps,
   phase,
 }: {
   steps: LogStep[];
-  phase: Phase;
+  phase: ExtendedPhase;
 }) {
-  const order: Phase[] = ["converging", "mixing", "revealing", "settling", "done"];
+  const order: ExtendedPhase[] = [
+    "converging",
+    "mixing",
+    "revealing",
+    "settling",
+    "done",
+    "finalizing",
+    "extracting",
+    "publishing",
+    "published",
+  ];
   const phaseIdx = order.indexOf(phase);
   const stepState = (s: LogStep): "pending" | "active" | "done" => {
     const lastIdx = order.indexOf(s.during[s.during.length - 1]!);

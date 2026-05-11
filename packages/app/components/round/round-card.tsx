@@ -12,7 +12,7 @@ import {
   Users,
 } from "@phosphor-icons/react";
 import type { RoundData } from "@/hooks/use-rounds";
-import { questionTextOf } from "@/lib/round-questions";
+import { useRoundQuestion } from "@/hooks/use-round-question";
 import { formatRelative, shortHash } from "@/lib/format";
 import { RoundStatusPill } from "./round-status-pill";
 
@@ -26,7 +26,7 @@ const DOT_BG: React.CSSProperties = {
 };
 
 export function RoundCard({ round, index = 0 }: { round: RoundData; index?: number }) {
-  const question = questionTextOf(round.questionHash);
+  const { text: question } = useRoundQuestion(round.id);
   const phaseDeadline =
     round.status === "Open"
       ? round.commitDeadline

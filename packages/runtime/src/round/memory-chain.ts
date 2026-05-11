@@ -29,11 +29,13 @@ export function createMemoryChain(opts: CreateMemoryChainOptions): MemoryChain {
         account,
         chain: opts.walletClient.chain ?? null,
       })) as Hex;
-      await opts.publicClient.waitForTransactionReceipt({
-        hash: txHash,
-        timeout: 120_000,
-        retryCount: 30,
-      });
+      await opts.publicClient
+        .waitForTransactionReceipt({
+          hash: txHash,
+          timeout: 600_000,
+          retryCount: 120,
+        })
+        .catch(() => undefined);
       return txHash;
     },
   };

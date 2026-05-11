@@ -28,7 +28,7 @@ import { Panel, BracketBox } from "@/components/ui/panel";
 import { RoundStatusPill } from "./round-status-pill";
 import { CommitDialog } from "./commit-dialog";
 import { RevealDialog } from "./reveal-dialog";
-import { questionTextOf } from "@/lib/round-questions";
+import { useRoundQuestion } from "@/hooks/use-round-question";
 import { loadCommit } from "@/lib/commit";
 import {
   formatRelative,
@@ -45,6 +45,8 @@ export function RoundDetail({ roundId }: Props) {
   const { data: agentIdsRaw, refetch: refetchAgents } = useRoundAgents(roundId);
   const agentIds = (agentIdsRaw as readonly bigint[] | undefined) ?? [];
   const committedAgents = useAgentRows([...agentIds]);
+
+  const { text: question } = useRoundQuestion(roundId);
 
   const { authenticated, user } = usePrivy();
   const viewer = (
@@ -80,7 +82,6 @@ export function RoundDetail({ roundId }: Props) {
     );
   }
 
-  const question = questionTextOf(round.questionHash);
   const eligibleToCommit = round.status === "Open" && ownedAgents.length > 0;
   const eligibleAgentsForReveal = ownedAgents.filter((a) => {
     if (round.status !== "RevealPhase") return false;

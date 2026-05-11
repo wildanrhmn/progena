@@ -54,6 +54,15 @@ export function BreedWizard({ initialParentA }: Props) {
   const [parentBId, setParentBId] = useState<bigint | undefined>();
   const [pickerOpen, setPickerOpen] = useState<"A" | "B" | null>(null);
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewReplay, setPreviewReplay] = useState(0);
+
+  const finalizedAgents = useMemo(
+    () => agents.filter((a) => a.rootHash && a.rootHash !== `0x${"0".repeat(64)}`),
+    [agents]
+  );
+  const previewParentA = finalizedAgents[0];
+  const previewParentB = finalizedAgents[1];
 
   const parentA = agents.find((a) => a.id === parentAId);
   const parentB = agents.find((a) => a.id === parentBId);
@@ -266,27 +275,40 @@ export function BreedWizard({ initialParentA }: Props) {
               </p>
             )}
           </div>
-          <button
-            onClick={submitBreed}
-            disabled={
-              breedPending || breedConfirming || overlayOpen || !bothSelected
-            }
-            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {(breedPending || breedConfirming) && (
-              <CircleNotch size={14} className="animate-spin" />
-            )}
-            {breedPending
-              ? "Confirm in wallet…"
-              : breedConfirming
-                ? "Crossing genomes…"
-                : bothSelected
-                  ? "Breed"
-                  : "Pick two parents"}
-            {!breedPending && !breedConfirming && bothSelected && (
-              <ArrowRight size={14} weight="bold" />
-            )}
-          </button>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <button
+              onClick={submitBreed}
+              disabled={
+                breedPending || breedConfirming || overlayOpen || !bothSelected
+              }
+              className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {(breedPending || breedConfirming) && (
+                <CircleNotch size={14} className="animate-spin" />
+              )}
+              {breedPending
+                ? "Confirm in wallet…"
+                : breedConfirming
+                  ? "Crossing genomes…"
+                  : bothSelected
+                    ? "Breed"
+                    : "Pick two parents"}
+              {!breedPending && !breedConfirming && bothSelected && (
+                <ArrowRight size={14} weight="bold" />
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setPreviewReplay((k) => k + 1);
+                setPreviewOpen(true);
+              }}
+              disabled={!previewParentA || !previewParentB}
+              className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+              title="Watch the full hatch + publish animation without spending OG"
+            >
+              Preview animation (no chain writes)
+            </button>
+          </div>
         </div>
       </Panel>
 
@@ -322,6 +344,19 @@ export function BreedWizard({ initialParentA }: Props) {
             }
             setOverlayOpen(false);
           }}
+        />
+      )}
+
+      {previewParentA && previewParentB && (
+        <BirthOverlay
+          open={previewOpen}
+          parentA={previewParentA}
+          parentB={previewParentB}
+          childTokenId={999_999_999n}
+          replayKey={previewReplay}
+          previewMode
+          dismissable
+          onClose={() => setPreviewOpen(false)}
         />
       )}
     </div>

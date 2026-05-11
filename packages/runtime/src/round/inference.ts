@@ -61,6 +61,58 @@ export function createOpenAIInferenceClient(opts: OpenAIInferenceOptions): Infer
   };
 }
 
+export interface OpenClawInferenceOptions {
+  openclawBin?: string;
+  logger?: Logger;
+}
+
+export function createOpenClawInferenceClient(
+  opts: OpenClawInferenceOptions = {}
+): InferenceClient {
+  return {
+    async complete(req) {
+      const { spawn } = await import("node:child_process");
+      const bin = opts.openclawBin ?? "openclaw";
+      const prompt = `${req.systemPrompt}\n\n${req.userPrompt}`;
+      opts.logger?.info?.("invoking openclaw", { bin });
+      const stdout = await new Promise<string>((resolve, reject) => {
+        const child = spawn(
+          bin,
+          ["infer", "model", "run", "--prompt", prompt],
+          { stdio: ["ignore", "pipe", "pipe"] }
+        );
+        let out = "";
+        let err = "";
+        child.stdout?.on("data", (chunk: Buffer) => {
+          out += chunk.toString("utf8");
+        });
+        child.stderr?.on("data", (chunk: Buffer) => {
+          err += chunk.toString("utf8");
+        });
+        child.on("error", reject);
+        child.on("close", (code) => {
+          if (code !== 0) {
+            opts.logger?.warn?.("openclaw non-zero exit", {
+              code,
+              stderr: err.slice(0, 200),
+            });
+          }
+          resolve(out);
+        });
+      });
+      const lines = stdout.split(/\r?\n/);
+      const headerEnd = lines.findIndex((l) =>
+        /^outputs:\s*\d+/.test(l.trim())
+      );
+      const text =
+        headerEnd === -1
+          ? stdout.trim()
+          : lines.slice(headerEnd + 1).join("\n").trim();
+      return { text, model: "openclaw/custom-127-0-0-1-8787" };
+    },
+  };
+}
+
 export interface ZGComputeInferenceOptions {
   ctx: BrokerContext;
   providerAddress: string;

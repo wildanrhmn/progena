@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePrivy } from "@privy-io/react-auth";
 import makeBlockie from "ethereum-blockies-base64";
@@ -7,18 +8,23 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  Brain,
   CircleNotch,
   GitBranch,
   GitFork,
+  Lightning,
   Sparkle,
   Trophy,
+  Wrench,
 } from "@phosphor-icons/react";
 import { useAgent, useAgentMemoryShards } from "@/hooks/use-agent";
 import { displayNameOf } from "@/hooks/use-agents";
 import { useNames, nameOrId } from "@/hooks/use-names";
 import { useDescendants } from "@/hooks/use-descendants";
+import { useTraits } from "@/hooks/use-traits";
 import { Panel, BracketBox } from "@/components/ui/panel";
 import { SetNameButton } from "./set-name-dialog";
+import { ShardModal } from "./shard-modal";
 import { StudFeePanel } from "./stud-fee-panel";
 import {
   formatRelative,
@@ -38,7 +44,9 @@ export function AgentDetail({ agentId }: Props) {
     useAgent(agentId);
   const { shards, count: shardCount } = useAgentMemoryShards(agentId, 12);
   const { descendants } = useDescendants(agentId);
+  const { traits } = useTraits(agentId);
   const { authenticated, user } = usePrivy();
+  const [openShard, setOpenShard] = useState<{ hash: string; index: number } | undefined>();
 
   const lineageIds = agent
     ? [agent.parentA, agent.parentB, ...descendants.map((d) => d.otherParent)]
@@ -206,6 +214,73 @@ export function AgentDetail({ agentId }: Props) {
         />
       </div>
 
+      {/* Capabilities */}
+      <Panel>
+        <div className="p-6">
+          <div className="mb-4 flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-white/55">
+            <Brain size={12} weight="bold" />
+            Capabilities
+          </div>
+          {!traits ? (
+            <p className="text-sm text-muted-foreground">
+              No public traits published yet. The runtime daemon publishes
+              skills + tools + SOUL preview to AgentTraitCatalog after every
+              finalize.
+            </p>
+          ) : (
+            <div className="space-y-5">
+              {traits.skills.length > 0 && (
+                <div>
+                  <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
+                    <Lightning size={11} weight="bold" />
+                    Skills
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {traits.skills.map((s) => (
+                      <span
+                        key={s}
+                        className="rounded-full border border-accent-life/40 bg-accent-life/10 px-2.5 py-1 text-[11px] uppercase tracking-wider text-accent-life"
+                      >
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {traits.tools.length > 0 && (
+                <div>
+                  <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
+                    <Wrench size={11} weight="bold" />
+                    Tools
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {traits.tools.map((t) => (
+                      <span
+                        key={t}
+                        className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-[11px] text-zinc-300"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {traits.soulPreview && (
+                <div>
+                  <div className="mb-2 text-[11px] uppercase tracking-wider text-white/55">
+                    SOUL preview
+                  </div>
+                  <blockquote className="border-l-2 border-accent-lineage/60 pl-3 text-sm italic leading-relaxed text-foreground/85">
+                    {traits.soulPreview}
+                    {traits.soulPreview.length >= 320 && "…"}
+                  </blockquote>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Panel>
+
       {/* Lineage + Memory */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel>
@@ -248,19 +323,31 @@ export function AgentDetail({ agentId }: Props) {
               </p>
             ) : (
               <ul className="divide-y divide-white/10">
-                {shards.map((hash, i) => (
-                  <li
-                    key={`${hash}-${i}`}
-                    className="flex items-center justify-between py-2 text-xs"
-                  >
-                    <span className="font-mono text-muted-foreground">
-                      shard {Number(shardCount) - i}
-                    </span>
-                    <span className="font-mono text-foreground">
-                      {shortHash(hash, 8, 6)}
-                    </span>
-                  </li>
-                ))}
+                {shards.map((hash, i) => {
+                  const shardNum = Number(shardCount) - i;
+                  return (
+                    <li key={`${hash}-${i}`}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenShard({ hash, index: shardNum })}
+                        title="Open shard — fetched from 0G Storage"
+                        className="group flex w-full items-center justify-between gap-3 py-2 text-left text-xs transition-colors hover:bg-white/[0.02]"
+                      >
+                        <span className="font-mono text-muted-foreground">
+                          shard {shardNum}
+                        </span>
+                        <span className="flex items-center gap-1.5 font-mono text-foreground transition-colors group-hover:text-accent-lineage">
+                          {shortHash(hash, 8, 6)}
+                          <ArrowUpRight
+                            size={10}
+                            weight="bold"
+                            className="text-muted-foreground transition-colors group-hover:text-accent-lineage"
+                          />
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -352,6 +439,13 @@ export function AgentDetail({ agentId }: Props) {
           </div>
         </div>
       </Panel>
+
+      <ShardModal
+        open={!!openShard}
+        rootHash={openShard?.hash}
+        shardIndex={openShard?.index}
+        onClose={() => setOpenShard(undefined)}
+      />
 
       {/* Genome anchor */}
       <Panel>
