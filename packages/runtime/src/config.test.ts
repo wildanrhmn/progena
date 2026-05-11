@@ -26,7 +26,7 @@ describe("loadConfig", () => {
     expect(config.indexerPollMs).toEqual(4000);
     expect(config.logLevel).toEqual("info");
     expect(config.reporterPrivateKey).toBeUndefined();
-    expect(config.zgComputeBaseUrl).toBeUndefined();
+    expect(config.zgComputeProvider).toBeUndefined();
   });
 
   it("coerces INDEXER_POLL_MS from a string", () => {

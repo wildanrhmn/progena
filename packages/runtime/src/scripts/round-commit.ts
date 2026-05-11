@@ -7,25 +7,53 @@ import { loadConfig } from "../config.js";
 import { createLogger } from "../lib/logger.js";
 import { createFileCommitStore } from "../round/commit-store.js";
 import {
-  createOpenAIInferenceClient,
   createStubInferenceClient,
+  createZGComputeInferenceClient,
   type InferenceClient,
 } from "../round/inference.js";
 import { createRoundChain } from "../round/round-chain.js";
 import { RoundRunner } from "../round/round-runner.js";
+import {
+  connectBroker,
+  ensureLedger,
+  ensureProviderFunded,
+  listChatServices,
+  pickChatService,
+} from "../compute/index.js";
+import type { Logger } from "../lib/logger.js";
 import { bigintArg, listArg } from "./args.js";
 import { getRound } from "./round-store.js";
 
-async function buildInferenceClient(config: ReturnType<typeof loadConfig>): Promise<InferenceClient> {
-  if (!config.zgComputeBaseUrl || !config.zgComputeToken) {
-    return createStubInferenceClient();
+async function buildInferenceClient(
+  config: ReturnType<typeof loadConfig>,
+  logger: Logger
+): Promise<{ client: InferenceClient; mode: string }> {
+  try {
+    const ctx = await connectBroker({
+      rpcUrl: config.rpcUrl,
+      privateKey: config.genomeWriterPrivateKey,
+      logger,
+    });
+    await ensureLedger(ctx, config.zgComputeLedgerOg, logger);
+
+    let providerAddress = config.zgComputeProvider as string | undefined;
+    if (!providerAddress) {
+      const services = await listChatServices(ctx);
+      const picked = pickChatService(services);
+      if (!picked) throw new Error("no chat provider available on 0G Compute");
+      providerAddress = picked.provider;
+    }
+    await ensureProviderFunded(ctx, providerAddress, config.zgComputeProviderFundOg, logger);
+    return {
+      client: createZGComputeInferenceClient({ ctx, providerAddress, logger }),
+      mode: `0G Compute · provider ${providerAddress}`,
+    };
+  } catch (err) {
+    logger.warn("0G Compute setup failed, falling back to stub", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { client: createStubInferenceClient(), mode: "stub (compute unavailable)" };
   }
-  const { default: OpenAI } = await import("openai");
-  const client = new OpenAI({
-    baseURL: config.zgComputeBaseUrl,
-    apiKey: config.zgComputeToken,
-  });
-  return createOpenAIInferenceClient({ client });
 }
 
 async function main(): Promise<void> {
@@ -65,13 +93,16 @@ async function main(): Promise<void> {
     walletClient,
   });
 
-  const inference = await buildInferenceClient(config);
+  const { client: inference, mode: inferenceMode } = await buildInferenceClient(
+    config,
+    logger
+  );
   const commitStore = createFileCommitStore(commitStorePath);
   const runner = new RoundRunner({ chain, storage, inference, commitStore, logger });
 
   logger.info("committing for agents", {
     agents: agentIds.map((a) => String(a)),
-    inferenceMode: config.zgComputeBaseUrl ? "0G Compute" : "stub",
+    inferenceMode,
   });
 
   const results = await runner.commitForAgents(roundId, agentIds, round.question);

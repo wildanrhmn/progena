@@ -17,6 +17,7 @@ import { useNames } from "@/hooks/use-names";
 import { AgentCard } from "@/components/agent-card";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { WithdrawWidget } from "@/components/portfolio/withdraw-widget";
 import { shortAddress } from "@/lib/format";
 
 export default function PortfolioPage() {
@@ -90,6 +91,8 @@ export default function PortfolioPage() {
             </div>
           )}
         </header>
+
+        {viewer && <WithdrawWidget viewer={viewer} />}
 
         {!ready ? (
           <LoadingPlaceholder text="Initialising session…" />

@@ -34,7 +34,11 @@ export function createAgentRegistry(opts: CreateAgentRegistryOptions): AgentRegi
         account,
         chain: opts.walletClient.chain ?? null,
       })) as Hex;
-      await opts.publicClient.waitForTransactionReceipt({ hash: txHash });
+      await opts.publicClient.waitForTransactionReceipt({
+        hash: txHash,
+        timeout: 180_000,
+        retryCount: 60,
+      });
       return txHash;
     },
   };

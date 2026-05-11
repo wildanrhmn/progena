@@ -1,5 +1,8 @@
 import { keccak256, toBytes } from "viem";
 import { extractPrediction } from "./prediction.js";
+import type { BrokerContext } from "../compute/index.js";
+import { complete as zgComplete } from "../compute/index.js";
+import type { Logger } from "../lib/logger.js";
 
 export interface InferenceRequest {
   systemPrompt: string;
@@ -54,6 +57,35 @@ export function createOpenAIInferenceClient(opts: OpenAIInferenceOptions): Infer
       });
       const text = completion.choices[0]?.message?.content ?? "";
       return { text, model: completion.model };
+    },
+  };
+}
+
+export interface ZGComputeInferenceOptions {
+  ctx: BrokerContext;
+  providerAddress: string;
+  logger?: Logger;
+}
+
+export function createZGComputeInferenceClient(
+  opts: ZGComputeInferenceOptions
+): InferenceClient {
+  return {
+    async complete(req) {
+      const result = await zgComplete(
+        opts.ctx,
+        {
+          providerAddress: opts.providerAddress,
+          messages: [
+            { role: "system", content: req.systemPrompt },
+            { role: "user", content: req.userPrompt },
+          ],
+          temperature: req.temperature ?? 0.3,
+          maxTokens: req.maxTokens ?? 512,
+        },
+        opts.logger
+      );
+      return { text: result.text, model: result.model };
     },
   };
 }

@@ -32,8 +32,9 @@ export const configSchema = z.object({
   }),
   genomeWriterPrivateKey: privateKeySchema,
   reporterPrivateKey: privateKeySchema.optional(),
-  zgComputeBaseUrl: z.string().url().optional(),
-  zgComputeToken: z.string().optional(),
+  zgComputeProvider: addressSchema.optional(),
+  zgComputeLedgerOg: z.coerce.number().positive().default(3),
+  zgComputeProviderFundOg: z.coerce.number().positive().default(1),
   indexerPollMs: z.coerce.number().int().positive().default(4000),
   logLevel: logLevelSchema.default("info"),
 });
@@ -66,8 +67,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     },
     genomeWriterPrivateKey: env.GENOME_WRITER_PRIVATE_KEY,
     reporterPrivateKey: emptyToUndefined(env.REPORTER_PRIVATE_KEY),
-    zgComputeBaseUrl: emptyToUndefined(env.ZG_COMPUTE_BASE_URL),
-    zgComputeToken: emptyToUndefined(env.ZG_COMPUTE_TOKEN),
+    zgComputeProvider: emptyToUndefined(env.ZG_COMPUTE_PROVIDER),
+    zgComputeLedgerOg: env.ZG_COMPUTE_LEDGER_OG,
+    zgComputeProviderFundOg: env.ZG_COMPUTE_PROVIDER_FUND_OG,
     indexerPollMs: env.INDEXER_POLL_MS,
     logLevel: env.LOG_LEVEL,
   });

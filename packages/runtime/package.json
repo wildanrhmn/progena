@@ -16,7 +16,9 @@
     "round:create": "tsx src/scripts/round-create.ts",
     "round:commit": "tsx src/scripts/round-commit.ts",
     "round:reveal": "tsx src/scripts/round-reveal.ts",
-    "round:resolve": "tsx src/scripts/round-resolve.ts"
+    "round:resolve": "tsx src/scripts/round-resolve.ts",
+    "compute:hello": "tsx src/scripts/compute-hello.ts",
+    "compute:services": "tsx src/scripts/compute-services.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
@@ -25,8 +27,10 @@
     "vitest": "^2.1.0"
   },
   "dependencies": {
+    "@0gfoundation/0g-compute-ts-sdk": "^0.8.3",
     "@progena/sdk": "*",
     "dotenv": "^16.4.5",
+    "ethers": "^6.13.0",
     "openai": "^4.71.0",
     "viem": "^2.21.0",
     "zod": "^3.23.8"
