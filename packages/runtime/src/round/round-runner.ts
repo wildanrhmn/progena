@@ -106,6 +106,26 @@ export class RoundRunner {
     const commitHash = buildCommitHash(roundId, agentId, prediction, nonce);
 
     const entryFee = await this.opts.chain.entryFeeOf(roundId);
+    const reasoningPreview =
+      rawText.length > 320 ? `${rawText.slice(0, 320)}…` : rawText;
+
+    // Persist nonce + commit hash FIRST so we can always reveal even if the
+    // tx submission or receipt-poll crashes downstream.
+    const stored: StoredCommitment = {
+      roundId: String(roundId),
+      agentId: String(agentId),
+      prediction,
+      nonce,
+      commitHash,
+      committedAt: this.now(),
+      revealed: false,
+      inferenceModel,
+      inferenceIterations,
+      toolCalls,
+      reasoningPreview,
+    };
+    await this.opts.commitStore.save(stored);
+
     log?.info("submitting commit", {
       prediction,
       commitHash,
@@ -118,24 +138,7 @@ export class RoundRunner {
       commitHash,
       entryFee
     );
-
-    const reasoningPreview =
-      rawText.length > 320 ? `${rawText.slice(0, 320)}…` : rawText;
-
-    const stored: StoredCommitment = {
-      roundId: String(roundId),
-      agentId: String(agentId),
-      prediction,
-      nonce,
-      commitHash,
-      committedAt: this.now(),
-      commitTxHash,
-      revealed: false,
-      inferenceModel,
-      inferenceIterations,
-      toolCalls,
-      reasoningPreview,
-    };
+    stored.commitTxHash = commitTxHash;
     await this.opts.commitStore.save(stored);
 
     log?.info("committed", { commitTxHash });

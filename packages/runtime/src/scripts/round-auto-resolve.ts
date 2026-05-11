@@ -24,16 +24,27 @@ const PROXY_MODEL = process.env.OPENAI_PROXY_MODEL ?? "deepseek/deepseek-chat-v3
 
 import { parseOracleOutcome } from "../round/oracle-parser.js";
 
-const ORACLE_SYSTEM_PROMPT =
-  "You are the on-chain oracle resolving a Progena prediction-market round on 0G Chain.\n\n" +
-  "Your job: derive the truth value of the question as an integer in [0, 10000] basis points, where 0 = certainly NO, 10000 = certainly YES, 5000 = uncertain.\n\n" +
-  "Available tool: web_search — use it 2 to 4 times to gather real evidence about the question. Search for:\n" +
-  "  1. The most direct phrasing of the question's subject\n" +
-  "  2. Current state or recent news related to the resolution criterion\n" +
-  "  3. Authoritative sources if the question references specific data (prices, counts, dates)\n\n" +
-  "After gathering evidence, REASON briefly about what the evidence shows, then output your final answer on the LAST line in this exact format:\n" +
-  "FINAL_ANSWER: <integer 0-10000>\n\n" +
-  "Calibrate carefully. Don't anchor on round numbers; small movements off 5000 should reflect real evidence asymmetry. If evidence is weak or contradictory, stay near 5000.";
+function buildOracleSystemPrompt(now: Date): string {
+  const iso = now.toISOString().slice(0, 10);
+  const human = now.toUTCString().replace(/^[A-Z][a-z]{2}, /, "");
+  return [
+    `You are the on-chain oracle resolving a Progena prediction-market round on 0G Chain.`,
+    ``,
+    `THE CURRENT REAL-WORLD DATE IS ${iso} (${human}). Do NOT default to your training-cutoff date when interpreting "today", "now", "current", or "recent" in the question. Anchor all reasoning and search queries to ${iso}.`,
+    ``,
+    `Your job: derive the truth value of the question as an integer in [0, 10000] basis points, where 0 = certainly NO, 10000 = certainly YES, 5000 = uncertain.`,
+    ``,
+    `Available tool: web_search — use it 2 to 4 times to gather real evidence about the question. Search for:`,
+    `  1. The most direct phrasing of the question's subject`,
+    `  2. Current state or recent news related to the resolution criterion — when crafting queries, include "${iso}" or the current month/year so Tavily returns recent results, NOT historical results from your training era`,
+    `  3. Authoritative sources if the question references specific data (prices, counts, dates)`,
+    ``,
+    `After gathering evidence, REASON briefly about what the evidence shows, then output your final answer on the LAST line in this exact format:`,
+    `FINAL_ANSWER: <integer 0-10000>`,
+    ``,
+    `Calibrate carefully. Don't anchor on round numbers; small movements off 5000 should reflect real evidence asymmetry. If evidence is weak or contradictory, stay near 5000.`,
+  ].join("\n");
+}
 
 async function main(): Promise<void> {
   const roundId = bigintArg("round");
@@ -91,7 +102,7 @@ async function main(): Promise<void> {
   ].join("\n");
 
   const result = await inference.run({
-    systemPrompt: ORACLE_SYSTEM_PROMPT,
+    systemPrompt: buildOracleSystemPrompt(new Date()),
     userPrompt,
     toolNames: ["web_search"],
     temperature: 0.2,

@@ -65,7 +65,7 @@ function buildInference(logger: Logger): { client: InferenceClient; mode: string
 }
 
 const SKILL_PROMOTION_SYSTEM_PROMPT =
-  "You are a skill-promotion analyst for Progena. You inspect an agent's recent prediction-round memory shards and decide whether the agent has demonstrated a coherent, repeatable skill that should be promoted into its capability set as an *earned* skill.\n\nRules:\n- Be CONSERVATIVE. Only promote a skill if there's clear evidence of a repeated competence across multiple rounds (e.g. consistently good calibration on macro questions, or consistent fading of sentiment extremes). One lucky round is not enough.\n- Output in this exact format, no preamble:\n\nDECISION: yes|no\nSKILL_NAME: <kebab-case-name, max 64 chars, prefix with 'earned-'>\nREASONING: <one sentence, max 200 chars, what pattern justified the promotion>\nSKILL_MARKDOWN:\n<the SKILL.md content — open with one-line description, then When to use:/How: sections, under 400 words>\n\nIf DECISION is no, omit SKILL_NAME, REASONING, and SKILL_MARKDOWN.";
+  "You are a skill-promotion analyst for Progena. You inspect an agent's recent prediction-round memory shards (which include tool-call traces) and decide whether the agent has demonstrated a coherent, repeatable BEHAVIOR or COMPETENCE that should be promoted into its capability set as an *earned* skill.\n\nWhat counts as a promotable skill:\n- A consistent research approach across rounds (e.g. 'always uses web_search to gather current data before predicting price questions')\n- A consistent calibration habit (e.g. 'reliably clamps predictions to [50, 150] on uncertain factual questions, avoiding the 5000 mid-point trap')\n- A repeated domain focus (e.g. 'consistently engages with crypto-price questions using a search-first methodology')\n- A specific corrective lesson that's been internalized (e.g. 'after learning that extreme predictions get penalized, now anchors closer to 5000')\n\nGuidelines:\n- Require evidence from AT LEAST 2 rounds. A pattern visible across 2-3 rounds is enough if it's clearly the same behavior.\n- Outcome quality matters but isn't the only signal — a CONSISTENT METHODOLOGY is itself a skill, even if the oracle disagrees occasionally.\n- The skill name should describe what the agent does, not just a domain ('earned-search-before-price-prediction', not 'earned-crypto').\n- Don't promote on a single round.\n- Don't promote contradictory patterns (e.g. predicted 50 in some rounds, 9500 in others, with no theme).\n\nOutput in this exact format, no preamble:\n\nDECISION: yes|no\nSKILL_NAME: <kebab-case-name, max 64 chars, prefix with 'earned-'>\nREASONING: <one sentence, max 200 chars, the behavioral pattern that justified the promotion>\nSKILL_MARKDOWN:\n<the SKILL.md content — open with one-line description, then When to use:/How: sections, under 400 words>\n\nIf DECISION is no, omit SKILL_NAME, REASONING, and SKILL_MARKDOWN.";
 
 type Promotion = {
   skillName: string;
@@ -166,9 +166,21 @@ async function main(): Promise<void> {
         try {
           const bytes = await storage.download(rootHash);
           const shard = deserializeShard(bytes);
-          shardSummaries.push(
-            `[shard ${index}] round=${shard.roundId} prediction=${shard.myPrediction} outcome=${shard.actualOutcome} delta=${shard.scoreDelta} lesson="${shard.lesson}"`
-          );
+          const toolPattern = (shard.toolCalls ?? [])
+            .map((tc) => `${tc.tool}(${JSON.stringify(tc.args).slice(0, 60)})`)
+            .join(", ");
+          const lines = [
+            `[shard ${index}] round=${shard.roundId} prediction=${shard.myPrediction} outcome=${shard.actualOutcome} delta=${shard.scoreDelta}`,
+            `  lesson: "${shard.lesson}"`,
+          ];
+          if (toolPattern) {
+            lines.push(`  tools_used: ${toolPattern}`);
+          }
+          if (shard.reasoningPreview) {
+            const preview = shard.reasoningPreview.replace(/\s+/g, " ").slice(0, 200);
+            lines.push(`  reasoning: "${preview}"`);
+          }
+          shardSummaries.push(lines.join("\n"));
         } catch (err) {
           logger.warn("failed to download shard", {
             agentId: String(agentId),

@@ -52,9 +52,14 @@ export function toAgentContext(genome: Genome): AgentContext {
   };
 }
 
-export function buildPredictionUserPrompt(question: string): string {
+export function buildPredictionUserPrompt(question: string, now: Date = new Date()): string {
+  const iso = now.toISOString().slice(0, 10);
+  const human = now.toUTCString().replace(/^[A-Z][a-z]{2}, /, "");
   return [
     `You are participating in a Progena prediction round.`,
+    ``,
+    `THE CURRENT REAL-WORLD DATE IS ${iso} (${human}). Do NOT default to your training-cutoff date when interpreting "today", "now", "current", or "recent" in the question. If you use a web_search tool, include "${iso}" or the current month/year in queries so the results are recent, not historical.`,
+    ``,
     `Question: ${question.trim()}`,
     ``,
     `Reason briefly, then output your final answer on the LAST line in this exact format:`,
