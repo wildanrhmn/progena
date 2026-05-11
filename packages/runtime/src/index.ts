@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { GenomeStorage, zgGalileo, zgMainnet } from "@progena/sdk";
@@ -9,6 +10,39 @@ import {
   CrossoverOrchestrator,
   createAgentRegistry,
 } from "./orchestrator/index.js";
+import { BreedSynthesizer } from "./round/breed-synthesizer.js";
+import {
+  createOpenClawInferenceClient,
+  createStubInferenceClient,
+  type InferenceClient,
+} from "./round/inference.js";
+
+function openclawAvailable(bin = "openclaw"): boolean {
+  try {
+    execSync(`${bin} --version`, { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function buildInferenceClient(
+  logger: ReturnType<typeof createLogger>
+): { client: InferenceClient; mode: string } {
+  if (process.env.INFERENCE_MODE === "stub") {
+    return { client: createStubInferenceClient(), mode: "stub (forced)" };
+  }
+  if (openclawAvailable()) {
+    return {
+      client: createOpenClawInferenceClient({ logger }),
+      mode: "OpenClaw → 0G Compute (via proxy)",
+    };
+  }
+  return {
+    client: createStubInferenceClient(),
+    mode: "stub (openclaw not available)",
+  };
+}
 
 export const RUNTIME_VERSION = "0.0.0";
 
@@ -41,9 +75,18 @@ async function main(): Promise<void> {
     walletClient,
   });
 
+  const { client: inferenceClient, mode: inferenceMode } = buildInferenceClient(logger);
+  logger.info("inference backend", { mode: inferenceMode });
+
+  const synthesizer = new BreedSynthesizer({
+    inference: inferenceClient,
+    logger,
+  });
+
   const orchestrator = new CrossoverOrchestrator({
     registry,
     storage,
+    synthesizer,
     logger,
     computeCreatedAt: async (event) => {
       const block = await publicClient.getBlock({ blockNumber: event.blockNumber });

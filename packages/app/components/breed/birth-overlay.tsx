@@ -9,6 +9,7 @@ import {
   CheckCircle,
   CircleNotch,
   Lightning,
+  Sparkle,
   Warning,
   Wrench,
   X,
@@ -43,11 +44,20 @@ const PREVIEW_ROOT_HASH =
   "0x4242424242424242424242424242424242424242424242424242424242424242" as const;
 const PREVIEW_TRAITS = {
   version: 1 as const,
-  skills: ["price-history", "macro-context", "calibration", "risk-clamp"],
+  skills: [
+    "price-history",
+    "macro-context",
+    "calibration",
+    "risk-clamp",
+    "hybrid-macro-context-risk-clamp",
+  ],
   tools: ["fetch_price_history", "fetch_macro_indicators", "estimate_uncertainty"],
   soulPreview:
     "I am a deterministic child of Alpha × Beta. I weight macro signals over near-term momentum and clamp my predictions to avoid overconfidence.",
   generation: 1,
+  synthesizedSoul: true,
+  hybridSkillName: "hybrid-macro-context-risk-clamp",
+  hybridSourceSkills: ["macro-context", "risk-clamp"] as [string, string],
 };
 type PreviewStage =
   | "running"
@@ -73,6 +83,14 @@ const buildSteps = (parentA: AgentRow, parentB: AgentRow): LogStep[] => [
     during: ["converging"],
   },
   { label: "Crossing genes deterministically", during: ["mixing"] },
+  {
+    label: "Synthesizing new identity via 0G Compute",
+    during: ["mixing", "revealing"],
+  },
+  {
+    label: "Fusing a hybrid skill via 0G Compute",
+    during: ["revealing"],
+  },
   { label: "Sharding child genome to 0G Storage", during: ["revealing"] },
   {
     label: "Anchoring rootHash on AgentGenome",
@@ -83,7 +101,7 @@ const buildSteps = (parentA: AgentRow, parentB: AgentRow): LogStep[] => [
     during: ["finalizing"],
   },
   {
-    label: "Extracting inherited skills + tools",
+    label: "Extracting inherited + synthesized capabilities",
     during: ["extracting"],
   },
   {
@@ -531,13 +549,26 @@ export function BirthOverlay({
   );
 }
 
-function CapabilityChips({ traits }: { traits: { skills: string[]; tools: string[]; soulPreview: string } }) {
-  const visibleSkills = traits.skills.slice(0, 4);
-  const moreSkills = traits.skills.length - visibleSkills.length;
+function CapabilityChips({
+  traits,
+}: {
+  traits: {
+    skills: string[];
+    tools: string[];
+    soulPreview: string;
+    synthesizedSoul?: boolean;
+    hybridSkillName?: string;
+    hybridSourceSkills?: [string, string];
+  };
+}) {
+  const hybridName = traits.hybridSkillName;
+  const inheritedSkills = traits.skills.filter((s) => s !== hybridName);
+  const visibleInherited = inheritedSkills.slice(0, 3);
+  const moreInherited = inheritedSkills.length - visibleInherited.length;
   const visibleTools = traits.tools.slice(0, 5);
   const moreTools = traits.tools.length - visibleTools.length;
 
-  if (visibleSkills.length === 0 && visibleTools.length === 0 && !traits.soulPreview) {
+  if (visibleInherited.length === 0 && visibleTools.length === 0 && !hybridName) {
     return null;
   }
 
@@ -548,13 +579,19 @@ function CapabilityChips({ traits }: { traits: { skills: string[]; tools: string
       transition={{ duration: 0.4 }}
       className="w-full space-y-2"
     >
-      <div className="text-center text-[10px] uppercase tracking-[0.18em] text-white/55">
+      <div className="flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-white/55">
         Inherited
+        {traits.synthesizedSoul && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-accent-lineage/40 bg-accent-lineage/10 px-1.5 py-0.5 text-[9px] tracking-wider text-accent-lineage">
+            <Sparkle size={8} weight="fill" />
+            SOUL synthesized
+          </span>
+        )}
       </div>
-      {visibleSkills.length > 0 && (
+      {visibleInherited.length > 0 && (
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           <Lightning size={10} weight="bold" className="text-accent-life" />
-          {visibleSkills.map((s) => (
+          {visibleInherited.map((s) => (
             <span
               key={s}
               className="rounded-full border border-accent-life/40 bg-accent-life/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-accent-life"
@@ -562,9 +599,24 @@ function CapabilityChips({ traits }: { traits: { skills: string[]; tools: string
               {s}
             </span>
           ))}
-          {moreSkills > 0 && (
-            <span className="text-[10px] text-muted-foreground">+{moreSkills}</span>
+          {moreInherited > 0 && (
+            <span className="text-[10px] text-muted-foreground">+{moreInherited}</span>
           )}
+        </div>
+      )}
+      {hybridName && (
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          <Sparkle size={10} weight="fill" className="text-accent-lineage" />
+          <span
+            title={
+              traits.hybridSourceSkills
+                ? `Synthesized at birth via 0G Compute from "${traits.hybridSourceSkills[0]}" + "${traits.hybridSourceSkills[1]}"`
+                : undefined
+            }
+            className="inline-flex items-center gap-1 rounded-full border border-accent-lineage/50 bg-accent-lineage/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-accent-lineage"
+          >
+            {hybridName}
+          </span>
         </div>
       )}
       {visibleTools.length > 0 && (

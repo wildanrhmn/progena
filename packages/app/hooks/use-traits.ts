@@ -11,12 +11,20 @@ export type AgentTraits = {
   soulPreview?: string;
   generation?: number;
   description?: string;
+  synthesizedSoul?: boolean;
+  hybridSkillName?: string;
+  hybridSourceSkills?: [string, string];
 };
 
 function parseTraits(raw: string | undefined): AgentTraits | undefined {
   if (!raw || raw.length === 0) return undefined;
   try {
     const parsed = JSON.parse(raw) as Partial<AgentTraits>;
+    const sources = parsed.hybridSourceSkills;
+    const hybridSourceSkills =
+      Array.isArray(sources) && sources.length === 2
+        ? ([String(sources[0]), String(sources[1])] as [string, string])
+        : undefined;
     return {
       version: typeof parsed.version === "number" ? parsed.version : 1,
       skills: Array.isArray(parsed.skills) ? parsed.skills.map((s) => String(s)) : [],
@@ -27,6 +35,11 @@ function parseTraits(raw: string | undefined): AgentTraits | undefined {
         typeof parsed.generation === "number" ? parsed.generation : undefined,
       description:
         typeof parsed.description === "string" ? parsed.description : undefined,
+      synthesizedSoul:
+        typeof parsed.synthesizedSoul === "boolean" ? parsed.synthesizedSoul : undefined,
+      hybridSkillName:
+        typeof parsed.hybridSkillName === "string" ? parsed.hybridSkillName : undefined,
+      hybridSourceSkills,
     };
   } catch {
     return undefined;

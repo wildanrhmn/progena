@@ -1,5 +1,6 @@
 import type { Genome, RootHash } from "@progena/sdk";
 import type { Hex } from "viem";
+import type { SynthesisResult } from "../round/breed-synthesizer.js";
 
 export interface AgentRegistry {
   rootHashOf(tokenId: bigint): Promise<RootHash>;
@@ -13,4 +14,5 @@ export interface OrchestrationResult {
   childRootHash: RootHash;
   childGenome: Genome;
   setRootHashTxHash: Hex;
+  synthesis?: SynthesisResult;
 }

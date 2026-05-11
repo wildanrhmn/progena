@@ -1,15 +1,24 @@
 import {
+  SOUL_FILE,
   computeCrossoverSeed,
   crossoverGenomes,
+  type Genome,
   type GenomeStorage,
 } from "@progena/sdk";
 import type { Logger } from "../lib/logger.js";
 import type { BreedingEvent } from "../indexer/types.js";
 import type { AgentRegistry, OrchestrationResult } from "./types.js";
+import {
+  BreedSynthesizer,
+  SYNTHESIS_FILE,
+  renderSynthesisMarkdown,
+  type SynthesisResult,
+} from "../round/breed-synthesizer.js";
 
 export interface CrossoverOrchestratorOptions {
   registry: AgentRegistry;
   storage: GenomeStorage;
+  synthesizer?: BreedSynthesizer;
   logger?: Logger;
   computeCreatedAt?: (event: BreedingEvent) => number | Promise<number>;
 }
@@ -47,7 +56,7 @@ export class CrossoverOrchestrator {
       ? await this.opts.computeCreatedAt(event)
       : Math.floor(Date.now() / 1000);
 
-    const childGenome = crossoverGenomes({
+    let childGenome = crossoverGenomes({
       parentA: parentAGenome,
       parentB: parentBGenome,
       parentARoot,
@@ -60,6 +69,29 @@ export class CrossoverOrchestrator {
       generation: childGenome.manifest.generation,
       workspaceFiles: Object.keys(childGenome.workspace).length,
     });
+
+    let synthesis: SynthesisResult | undefined;
+    if (this.opts.synthesizer) {
+      log?.info("invoking BreedSynthesizer (0G Compute)");
+      try {
+        synthesis = await this.opts.synthesizer.synthesize({
+          parentA: parentAGenome,
+          parentB: parentBGenome,
+          seed,
+          childTokenId: event.childTokenId,
+        });
+        childGenome = applySynthesis(childGenome, synthesis);
+        log?.info("synthesis applied", {
+          soulSynthesized: synthesis.metadata.soulSynthesized,
+          hybridSkillSynthesized: synthesis.metadata.hybridSkillSynthesized,
+          hybridSkillName: synthesis.metadata.hybridSkillName,
+        });
+      } catch (err) {
+        log?.warn("synthesis failed, continuing with raw crossover", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
     const upload = await this.opts.storage.uploadGenome(childGenome);
     log?.info("child genome uploaded", { childRootHash: upload.rootHash });
@@ -81,6 +113,26 @@ export class CrossoverOrchestrator {
       childRootHash: upload.rootHash,
       childGenome,
       setRootHashTxHash,
+      synthesis,
     };
   }
+}
+
+function applySynthesis(child: Genome, synthesis: SynthesisResult): Genome {
+  const workspace = { ...child.workspace };
+
+  delete workspace[SYNTHESIS_FILE];
+
+  if (synthesis.synthesizedSoul) {
+    workspace[SOUL_FILE] = synthesis.synthesizedSoul;
+  }
+
+  if (synthesis.hybridSkill) {
+    const path = `skills/${synthesis.hybridSkill.name}/SKILL.md`;
+    workspace[path] = synthesis.hybridSkill.content;
+  }
+
+  workspace[SYNTHESIS_FILE] = renderSynthesisMarkdown(synthesis.metadata);
+
+  return { ...child, workspace };
 }

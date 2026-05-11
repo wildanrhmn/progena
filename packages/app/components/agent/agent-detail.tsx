@@ -236,15 +236,38 @@ export function AgentDetail({ agentId }: Props) {
                     Skills
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {traits.skills.map((s) => (
-                      <span
-                        key={s}
-                        className="rounded-full border border-accent-life/40 bg-accent-life/10 px-2.5 py-1 text-[11px] uppercase tracking-wider text-accent-life"
-                      >
-                        {s}
-                      </span>
-                    ))}
+                    {traits.skills.map((s) => {
+                      const isHybrid =
+                        traits.hybridSkillName !== undefined &&
+                        s === traits.hybridSkillName;
+                      return (
+                        <span
+                          key={s}
+                          title={
+                            isHybrid && traits.hybridSourceSkills
+                              ? `Synthesized at birth via 0G Compute from "${traits.hybridSourceSkills[0]}" + "${traits.hybridSourceSkills[1]}"`
+                              : undefined
+                          }
+                          className={
+                            isHybrid
+                              ? "inline-flex items-center gap-1 rounded-full border border-accent-lineage/50 bg-accent-lineage/15 px-2.5 py-1 text-[11px] uppercase tracking-wider text-accent-lineage"
+                              : "rounded-full border border-accent-life/40 bg-accent-life/10 px-2.5 py-1 text-[11px] uppercase tracking-wider text-accent-life"
+                          }
+                        >
+                          {isHybrid && <Sparkle size={9} weight="fill" />}
+                          {s}
+                        </span>
+                      );
+                    })}
                   </div>
+                  {traits.hybridSkillName && traits.hybridSourceSkills && (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      <span className="text-accent-lineage">{traits.hybridSkillName}</span>{" "}
+                      was synthesized by 0G Compute at breed time from{" "}
+                      <span className="font-mono">{traits.hybridSourceSkills[0]}</span> +{" "}
+                      <span className="font-mono">{traits.hybridSourceSkills[1]}</span>.
+                    </p>
+                  )}
                 </div>
               )}
               {traits.tools.length > 0 && (
@@ -267,8 +290,17 @@ export function AgentDetail({ agentId }: Props) {
               )}
               {traits.soulPreview && (
                 <div>
-                  <div className="mb-2 text-[11px] uppercase tracking-wider text-white/55">
-                    SOUL preview
+                  <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
+                    <span>SOUL preview</span>
+                    {traits.synthesizedSoul && (
+                      <span
+                        title="Synthesized at birth by 0G Compute from both parents' SOULs"
+                        className="inline-flex items-center gap-1 rounded-full border border-accent-lineage/40 bg-accent-lineage/10 px-1.5 py-0.5 text-[9px] tracking-wider text-accent-lineage"
+                      >
+                        <Sparkle size={8} weight="fill" />
+                        AI-synthesized
+                      </span>
+                    )}
                   </div>
                   <blockquote className="border-l-2 border-accent-lineage/60 pl-3 text-sm italic leading-relaxed text-foreground/85">
                     {traits.soulPreview}
