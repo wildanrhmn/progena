@@ -9,7 +9,7 @@ import { useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { CircleNotch, X } from "@phosphor-icons/react";
 import {
   predictionRoundContract,
-  roundQuestionCatalogContract,
+  roundMetadataContract,
 } from "@/lib/contracts";
 import { questionHashOf } from "@/lib/round-questions";
 import { useNextRoundId } from "@/hooks/use-rounds";
@@ -66,8 +66,8 @@ export function CreateRoundModal({ open, onClose, onSuccess }: Props) {
         const id = BigInt(data) - 1n;
         setNewRoundId(id);
         writePublish({
-          ...roundQuestionCatalogContract,
-          functionName: "publish",
+          ...roundMetadataContract,
+          functionName: "publishQuestion",
           args: [id, question.trim()],
         });
       }

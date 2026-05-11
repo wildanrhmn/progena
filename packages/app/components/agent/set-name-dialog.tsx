@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { CircleNotch, PencilSimple, X } from "@phosphor-icons/react";
-import { agentRegistryContract } from "@/lib/contracts";
+import { agentMetadataContract } from "@/lib/contracts";
 
 const NAME_RE = /^[A-Za-z0-9 _-]{2,32}$/;
 
@@ -36,7 +36,7 @@ export function SetNameButton({ agentId, onSuccess }: Props) {
     }
     setValidation(null);
     writeContract({
-      ...agentRegistryContract,
+      ...agentMetadataContract,
       functionName: "setName",
       args: [agentId, name],
     });

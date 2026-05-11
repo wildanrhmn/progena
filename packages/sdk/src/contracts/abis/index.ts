@@ -4,6 +4,5 @@ export { royaltySplitterAbi } from "./royaltySplitter.js";
 export { reputationOracleAbi } from "./reputationOracle.js";
 export { predictionRoundAbi } from "./predictionRound.js";
 export { agentMemoryAbi } from "./agentMemory.js";
-export { agentRegistryAbi } from "./agentRegistry.js";
-export { roundQuestionCatalogAbi } from "./roundQuestionCatalog.js";
-export { agentTraitCatalogAbi } from "./agentTraitCatalog.js";
+export { agentMetadataAbi } from "./agentMetadata.js";
+export { roundMetadataAbi } from "./roundMetadata.js";

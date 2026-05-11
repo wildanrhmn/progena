@@ -5,7 +5,7 @@ import type { Address } from "viem";
 import {
   agentGenomeContract,
   agentMemoryContract,
-  agentRegistryContract,
+  agentMetadataContract,
   reputationOracleContract,
 } from "@/lib/contracts";
 import type { AgentRow } from "./use-agents";
@@ -21,7 +21,7 @@ export function useAgent(id: bigint | undefined) {
           { ...reputationOracleContract, functionName: "scoreOf", args: [id!] } as const,
           { ...reputationOracleContract, functionName: "averageScoreOf", args: [id!] } as const,
           { ...reputationOracleContract, functionName: "roundCountOf", args: [id!] } as const,
-          { ...agentRegistryContract, functionName: "nameOf", args: [id!] } as const,
+          { ...agentMetadataContract, functionName: "nameOf", args: [id!] } as const,
         ]
       : [],
     allowFailure: true,

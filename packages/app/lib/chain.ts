@@ -8,9 +8,8 @@ const DEFAULT_ADDRESSES = {
   reputationOracle: "0xc6FC73bAC27f49b504DD267908A51F438f6Ab3ea",
   predictionRound: "0x17e111593242AC706509D7e9EB676A5602277Df4",
   agentMemory: "0x55CeB5f91B1806B2F52c8eeAE3181632B90Bb449",
-  agentRegistry: "0x4560a71a07cf8172cfb0bf61b96a5480255cec8d",
-  roundQuestionCatalog: "0xeca2a337a639a6214197a78090a83422351a4e28",
-  agentTraitCatalog: "0xa8b41b80948a96515d5b8e9c0b686dc40a47dec5",
+  agentMetadata: "0xfc3590a397f8fc0e729a5bcfe6a1040da20e432b",
+  roundMetadata: "0x884b9c792ec6423e3005c689e47a3f24247d3c5a",
 } as const satisfies Record<string, Address>;
 
 const fromEnvOrDefault = (envName: string, fallback: Address): Address => {
@@ -49,17 +48,13 @@ export const ADDRESSES = {
     DEFAULT_ADDRESSES.predictionRound
   ),
   agentMemory: fromEnvOrDefault("NEXT_PUBLIC_AGENT_MEMORY", DEFAULT_ADDRESSES.agentMemory),
-  agentRegistry: fromEnvOrDefault(
-    "NEXT_PUBLIC_AGENT_REGISTRY",
-    DEFAULT_ADDRESSES.agentRegistry
+  agentMetadata: fromEnvOrDefault(
+    "NEXT_PUBLIC_AGENT_METADATA",
+    DEFAULT_ADDRESSES.agentMetadata
   ),
-  roundQuestionCatalog: fromEnvOrDefault(
-    "NEXT_PUBLIC_ROUND_QUESTION_CATALOG",
-    DEFAULT_ADDRESSES.roundQuestionCatalog
-  ),
-  agentTraitCatalog: fromEnvOrDefault(
-    "NEXT_PUBLIC_AGENT_TRAIT_CATALOG",
-    DEFAULT_ADDRESSES.agentTraitCatalog
+  roundMetadata: fromEnvOrDefault(
+    "NEXT_PUBLIC_ROUND_METADATA",
+    DEFAULT_ADDRESSES.roundMetadata
   ),
 } as const;
 

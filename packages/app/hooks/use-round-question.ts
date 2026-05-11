@@ -1,12 +1,12 @@
 "use client";
 
 import { useReadContract } from "wagmi";
-import { roundQuestionCatalogContract } from "@/lib/contracts";
+import { roundMetadataContract } from "@/lib/contracts";
 
 export function useRoundQuestion(roundId: bigint | undefined) {
   const { data, isLoading, error, refetch } = useReadContract({
-    ...roundQuestionCatalogContract,
-    functionName: "textOf",
+    ...roundMetadataContract,
+    functionName: "questionOf",
     args: roundId !== undefined ? [roundId] : undefined,
     query: { enabled: roundId !== undefined, staleTime: 60_000 },
   });

@@ -16,10 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { BirthAnimation, type Phase } from "./birth-animation";
 import { displayNameOf, type AgentRow } from "@/hooks/use-agents";
-import {
-  agentRegistryContract,
-  agentTraitCatalogContract,
-} from "@/lib/contracts";
+import { agentMetadataContract } from "@/lib/contracts";
 import {
   useChildFinalization,
   useChildTraits,
@@ -185,8 +182,8 @@ export function BirthOverlay({
     if (previewMode || !open || !traitsJson || !childTokenId || publishFired) return;
     setPublishFired(true);
     writePublish({
-      ...agentTraitCatalogContract,
-      functionName: "publish",
+      ...agentMetadataContract,
+      functionName: "publishTraits",
       args: [childTokenId, traitsJson],
     });
   }, [previewMode, open, traitsJson, childTokenId, publishFired, writePublish]);
@@ -283,7 +280,7 @@ export function BirthOverlay({
     }
     setNameValidation(null);
     writeName({
-      ...agentRegistryContract,
+      ...agentMetadataContract,
       functionName: "setName",
       args: [childTokenId, name],
     });

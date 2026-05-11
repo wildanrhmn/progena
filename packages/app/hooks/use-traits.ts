@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useReadContract, useReadContracts } from "wagmi";
-import { agentTraitCatalogContract } from "@/lib/contracts";
+import { agentMetadataContract } from "@/lib/contracts";
 
 export type AgentTraits = {
   version: number;
@@ -48,7 +48,7 @@ function parseTraits(raw: string | undefined): AgentTraits | undefined {
 
 export function useTraits(tokenId: bigint | undefined) {
   const { data, isLoading, error, refetch } = useReadContract({
-    ...agentTraitCatalogContract,
+    ...agentMetadataContract,
     functionName: "traitsOf",
     args: tokenId !== undefined ? [tokenId] : undefined,
     query: { enabled: tokenId !== undefined, staleTime: 60_000 },
@@ -78,7 +78,7 @@ export function useTraitsBatch(ids: readonly bigint[]) {
     contracts: uniqueIds.map(
       (id) =>
         ({
-          ...agentTraitCatalogContract,
+          ...agentMetadataContract,
           functionName: "traitsOf",
           args: [id],
         }) as const

@@ -18,7 +18,10 @@
     "round:reveal": "tsx src/scripts/round-reveal.ts",
     "round:resolve": "tsx src/scripts/round-resolve.ts",
     "compute:hello": "tsx src/scripts/compute-hello.ts",
-    "compute:services": "tsx src/scripts/compute-services.ts"
+    "compute:services": "tsx src/scripts/compute-services.ts",
+    "migrate:metadata": "tsx src/scripts/migrate-to-metadata.ts",
+    "round:memorize": "tsx src/scripts/round-memorize.ts",
+    "round:auto-resolve": "tsx src/scripts/round-auto-resolve.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

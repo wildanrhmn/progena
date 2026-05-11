@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useReadContracts } from "wagmi";
-import { agentRegistryContract } from "@/lib/contracts";
+import { agentMetadataContract } from "@/lib/contracts";
 
 export function useNames(ids: readonly bigint[]) {
   const uniqueIds = useMemo(() => {
@@ -22,7 +22,7 @@ export function useNames(ids: readonly bigint[]) {
     contracts: uniqueIds.map(
       (id) =>
         ({
-          ...agentRegistryContract,
+          ...agentMetadataContract,
           functionName: "nameOf",
           args: [id],
         }) as const

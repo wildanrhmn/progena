@@ -5,7 +5,7 @@ import { useReadContract, useReadContracts } from "wagmi";
 import type { Address } from "viem";
 import {
   agentGenomeContract,
-  agentRegistryContract,
+  agentMetadataContract,
   reputationOracleContract,
 } from "@/lib/contracts";
 
@@ -42,7 +42,7 @@ export function useAgentRows(ids: bigint[]) {
       { ...agentGenomeContract, functionName: "ownerOf", args: [id] } as const,
       { ...reputationOracleContract, functionName: "scoreOf", args: [id] } as const,
       { ...reputationOracleContract, functionName: "roundCountOf", args: [id] } as const,
-      { ...agentRegistryContract, functionName: "nameOf", args: [id] } as const,
+      { ...agentMetadataContract, functionName: "nameOf", args: [id] } as const,
     ]);
   }, [ids]);
 
