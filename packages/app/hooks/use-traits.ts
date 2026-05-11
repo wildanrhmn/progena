@@ -14,6 +14,8 @@ export type AgentTraits = {
   synthesizedSoul?: boolean;
   hybridSkillName?: string;
   hybridSourceSkills?: [string, string];
+  synthesizedToolName?: string;
+  synthesizedToolSourceTools?: string[];
 };
 
 function parseTraits(raw: string | undefined): AgentTraits | undefined {
@@ -40,6 +42,11 @@ function parseTraits(raw: string | undefined): AgentTraits | undefined {
       hybridSkillName:
         typeof parsed.hybridSkillName === "string" ? parsed.hybridSkillName : undefined,
       hybridSourceSkills,
+      synthesizedToolName:
+        typeof parsed.synthesizedToolName === "string" ? parsed.synthesizedToolName : undefined,
+      synthesizedToolSourceTools: Array.isArray(parsed.synthesizedToolSourceTools)
+        ? parsed.synthesizedToolSourceTools.map((s) => String(s))
+        : undefined,
     };
   } catch {
     return undefined;

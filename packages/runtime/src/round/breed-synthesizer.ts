@@ -1,6 +1,7 @@
 import type { Hex } from "viem";
 import {
   DeterministicRNG,
+  TOOLS_FILE,
   isSkillPath,
   skillNameFromPath,
   SOUL_FILE,
@@ -26,6 +27,12 @@ export interface HybridSkill {
   sourceSkills: [string, string];
 }
 
+export interface SynthesizedTool {
+  name: string;
+  description: string;
+  sourceTools: string[];
+}
+
 export interface SynthesisMetadata {
   version: 1;
   synthesizedAt: number;
@@ -33,6 +40,8 @@ export interface SynthesisMetadata {
   hybridSkillSynthesized: boolean;
   hybridSkillName?: string;
   hybridSourceSkills?: [string, string];
+  synthesizedToolName?: string;
+  synthesizedToolSourceTools?: string[];
   parentASoulLength: number;
   parentBSoulLength: number;
   childTokenId: string;
@@ -41,6 +50,7 @@ export interface SynthesisMetadata {
 export interface SynthesisResult {
   synthesizedSoul?: string;
   hybridSkill?: HybridSkill;
+  synthesizedTool?: SynthesizedTool;
   metadata: SynthesisMetadata;
 }
 
@@ -55,6 +65,9 @@ const SOUL_SYSTEM_PROMPT =
 
 const SKILL_SYSTEM_PROMPT =
   "You are a synthesizer of agent skills. Two parent agents each contribute one skill markdown. Your job is to fuse them into a single hybrid skill that combines their methods in a useful, coherent way.\n\nRules:\n- Output a SKILL.md file in plain markdown\n- Open with a one-line description of what the hybrid skill does\n- Include 'When to use:' and 'How:' sections with concrete operational instructions an LLM agent could follow\n- Don't merely concatenate the two inputs — actually synthesize a new method that leverages both\n- Stay under ~400 words\n- Output ONLY the markdown, no preamble, no triple-backticks";
+
+const TOOL_SYSTEM_PROMPT =
+  "You are a synthesizer of agent tools. Two parent agents each list tools they prefer in their TOOLS.md. Your job is to invent ONE new tool name that combines or specializes existing parent tool capabilities — a conceptual tool the child will list in its own TOOLS.md.\n\nThe canonical tool primitives the runtime can execute today are:\n  - web_search (research the web)\n  - fetch_token_price (token prices via CoinGecko)\n  - read_on_chain (read 0G Chain contract state)\n  - fetch_market_state (read PredictionRound state)\n\nThe child's new tool name will be aliased by the runtime to one of these primitives (or remain prompt-only if no alias matches), so pick a name that hints at its underlying purpose. Examples: 'onchain-trace-correlator', 'sentiment-priced-divergence', 'lineage-explorer'.\n\nOutput in this EXACT format, no preamble, no extra lines:\n\nTOOL_NAME: <kebab-case-name, max 32 chars>\nTOOL_DESCRIPTION: <one sentence, max 200 chars, what this tool does and which parent tools it draws from>\nSOURCE_TOOLS: <comma-separated list of parent tool names this fuses>";
 
 export class BreedSynthesizer {
   constructor(private readonly opts: BreedSynthesizerOptions) {}
@@ -156,6 +169,40 @@ export class BreedSynthesizer {
       log?.info("skipping hybrid skill synthesis — at least one parent has no skills");
     }
 
+    let synthesizedTool: SynthesizedTool | undefined;
+    const aTools = parseToolList(input.parentA.workspace[TOOLS_FILE]);
+    const bTools = parseToolList(input.parentB.workspace[TOOLS_FILE]);
+    if (aTools.length > 0 && bTools.length > 0) {
+      const userPrompt = [
+        `Parent A's TOOLS.md (tools the parent prefers):`,
+        aTools.map((t) => `  - ${t}`).join("\n"),
+        ``,
+        `Parent B's TOOLS.md:`,
+        bTools.map((t) => `  - ${t}`).join("\n"),
+        ``,
+        `Synthesize a new tool name for the child now.`,
+      ].join("\n");
+      log?.info("synthesizing new tool via 0G Compute", {
+        aCount: aTools.length,
+        bCount: bTools.length,
+      });
+      try {
+        const response = await this.opts.inference.complete({
+          systemPrompt: TOOL_SYSTEM_PROMPT,
+          userPrompt,
+          temperature: 0.6,
+          maxTokens: 200,
+        });
+        synthesizedTool = parseToolResponse(response.text);
+      } catch (err) {
+        log?.warn("tool synthesis failed, continuing without it", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    } else {
+      log?.info("skipping tool synthesis — at least one parent has no tools");
+    }
+
     const metadata: SynthesisMetadata = {
       version: 1,
       synthesizedAt: this.now(),
@@ -163,12 +210,14 @@ export class BreedSynthesizer {
       hybridSkillSynthesized: !!hybridSkill,
       hybridSkillName: hybridSkill?.name,
       hybridSourceSkills: hybridSkill?.sourceSkills,
+      synthesizedToolName: synthesizedTool?.name,
+      synthesizedToolSourceTools: synthesizedTool?.sourceTools,
       parentASoulLength: parentASoul.length,
       parentBSoulLength: parentBSoul.length,
       childTokenId: String(input.childTokenId),
     };
 
-    return { synthesizedSoul, hybridSkill, metadata };
+    return { synthesizedSoul, hybridSkill, synthesizedTool, metadata };
   }
 
   private now(): number {
@@ -190,6 +239,14 @@ export function renderSynthesisMarkdown(meta: SynthesisMetadata): string {
       `<!-- hybridSourceSkills: ${meta.hybridSourceSkills.join(",")} -->`
     );
   }
+  if (meta.synthesizedToolName) {
+    lines.push(`<!-- synthesizedToolName: ${meta.synthesizedToolName} -->`);
+  }
+  if (meta.synthesizedToolSourceTools) {
+    lines.push(
+      `<!-- synthesizedToolSourceTools: ${meta.synthesizedToolSourceTools.join(",")} -->`
+    );
+  }
   lines.push("");
   lines.push("# Synthesis log");
   lines.push("");
@@ -203,6 +260,13 @@ export function renderSynthesisMarkdown(meta: SynthesisMetadata): string {
     const [a, b] = meta.hybridSourceSkills;
     lines.push(
       `The hybrid skill \`skills/${meta.hybridSkillName}/SKILL.md\` was authored by 0G Compute by fusing parent skills "${a}" and "${b}" into a single new method.`
+    );
+    lines.push("");
+  }
+  if (meta.synthesizedToolName) {
+    const sources = meta.synthesizedToolSourceTools?.join(", ") ?? "parent tools";
+    lines.push(
+      `A new tool \`${meta.synthesizedToolName}\` was added to TOOLS.md, synthesized by 0G Compute from ${sources}.`
     );
     lines.push("");
   }
@@ -230,6 +294,11 @@ export function parseSynthesisMetadata(markdown: string): SynthesisMetadata | nu
   const hybridSourceSkills = fields.hybridSourceSkills?.split(",") as
     | [string, string]
     | undefined;
+  const synthesizedToolName = fields.synthesizedToolName;
+  const synthesizedToolSourceTools = fields.synthesizedToolSourceTools
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
   return {
     version: 1,
     synthesizedAt,
@@ -239,6 +308,11 @@ export function parseSynthesisMetadata(markdown: string): SynthesisMetadata | nu
     hybridSourceSkills:
       hybridSourceSkills && hybridSourceSkills.length === 2
         ? hybridSourceSkills
+        : undefined,
+    synthesizedToolName,
+    synthesizedToolSourceTools:
+      synthesizedToolSourceTools && synthesizedToolSourceTools.length > 0
+        ? synthesizedToolSourceTools
         : undefined,
     parentASoulLength: 0,
     parentBSoulLength: 0,
@@ -256,6 +330,39 @@ function collectSkills(genome: Genome): Array<{ name: string; content: string }>
     out.push({ name, content });
   }
   return out;
+}
+
+function parseToolList(text: string | undefined): string[] {
+  if (!text) return [];
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+}
+
+function parseToolResponse(raw: string): SynthesizedTool | undefined {
+  const cleaned = stripFences(raw).trim();
+  const nameMatch = /^TOOL_NAME:\s*(.+)$/im.exec(cleaned);
+  const descMatch = /^TOOL_DESCRIPTION:\s*(.+)$/im.exec(cleaned);
+  const sourcesMatch = /^SOURCE_TOOLS:\s*(.+)$/im.exec(cleaned);
+  if (!nameMatch || !descMatch) return undefined;
+  const name = nameMatch[1]!
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 32);
+  if (name.length === 0) return undefined;
+  const description = descMatch[1]!.trim().slice(0, 240);
+  const sourceTools =
+    sourcesMatch && sourcesMatch[1]
+      ? sourcesMatch[1]
+          .split(",")
+          .map((s) => s.trim().toLowerCase())
+          .filter((s) => s.length > 0)
+      : [];
+  return { name, description, sourceTools };
 }
 
 function hybridName(a: string, b: string): string {

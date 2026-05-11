@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { Hex } from "viem";
+import type { ToolCallRecord } from "../tools/types.js";
 
 export interface StoredCommitment {
   roundId: string;
@@ -12,6 +13,10 @@ export interface StoredCommitment {
   commitTxHash?: Hex;
   revealed: boolean;
   revealTxHash?: Hex;
+  inferenceModel?: string;
+  inferenceIterations?: number;
+  toolCalls?: ToolCallRecord[];
+  reasoningPreview?: string;
 }
 
 export interface CommitStore {

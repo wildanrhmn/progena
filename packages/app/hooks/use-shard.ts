@@ -2,6 +2,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+export type ShardToolCall = {
+  tool: string;
+  args: Record<string, unknown>;
+  summary: string;
+  ok: boolean;
+  durationMs: number;
+};
+
 export type MemoryShard = {
   version: number;
   agentId: string;
@@ -12,6 +20,10 @@ export type MemoryShard = {
   scoreDelta: number;
   lesson: string;
   recordedAt: number;
+  toolCalls?: ShardToolCall[];
+  inferenceModel?: string;
+  inferenceIterations?: number;
+  reasoningPreview?: string;
 };
 
 async function fetchShard(rootHash: string): Promise<MemoryShard> {

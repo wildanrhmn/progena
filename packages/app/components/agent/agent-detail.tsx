@@ -322,15 +322,37 @@ export function AgentDetail({ agentId }: Props) {
                     Tools
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {traits.tools.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-[11px] text-zinc-300"
-                      >
-                        {t}
-                      </span>
-                    ))}
+                    {traits.tools.map((t) => {
+                      const isSynth =
+                        traits.synthesizedToolName !== undefined &&
+                        t === traits.synthesizedToolName;
+                      return (
+                        <span
+                          key={t}
+                          title={
+                            isSynth && traits.synthesizedToolSourceTools
+                              ? `Synthesized at birth via 0G Compute from ${traits.synthesizedToolSourceTools.join(", ")}`
+                              : undefined
+                          }
+                          className={
+                            isSynth
+                              ? "inline-flex items-center gap-1 rounded-full border border-accent-lineage/50 bg-accent-lineage/15 px-2.5 py-1 text-[11px] text-accent-lineage"
+                              : "rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-[11px] text-zinc-300"
+                          }
+                        >
+                          {isSynth && <Sparkle size={9} weight="fill" />}
+                          {t}
+                        </span>
+                      );
+                    })}
                   </div>
+                  {traits.synthesizedToolName && traits.synthesizedToolSourceTools && (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      <span className="text-accent-lineage">{traits.synthesizedToolName}</span>{" "}
+                      was synthesized by 0G Compute at breed time from{" "}
+                      <span className="font-mono">{traits.synthesizedToolSourceTools.join(", ")}</span>.
+                    </p>
+                  )}
                 </div>
               )}
               {traits && traits.soulPreview && (

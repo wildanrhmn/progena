@@ -1,5 +1,6 @@
 import {
   SOUL_FILE,
+  TOOLS_FILE,
   computeCrossoverSeed,
   crossoverGenomes,
   type Genome,
@@ -130,6 +131,18 @@ function applySynthesis(child: Genome, synthesis: SynthesisResult): Genome {
   if (synthesis.hybridSkill) {
     const path = `skills/${synthesis.hybridSkill.name}/SKILL.md`;
     workspace[path] = synthesis.hybridSkill.content;
+  }
+
+  if (synthesis.synthesizedTool) {
+    const existing = workspace[TOOLS_FILE] ?? "";
+    const tools = existing
+      .split("\n")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+    if (!tools.includes(synthesis.synthesizedTool.name)) {
+      tools.push(synthesis.synthesizedTool.name);
+    }
+    workspace[TOOLS_FILE] = tools.join("\n");
   }
 
   workspace[SYNTHESIS_FILE] = renderSynthesisMarkdown(synthesis.metadata);

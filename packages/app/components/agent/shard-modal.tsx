@@ -200,6 +200,40 @@ export function ShardModal({ open, rootHash, shardIndex, onClose }: Props) {
                     </KV>
                   </div>
 
+                  {shard.toolCalls && shard.toolCalls.length > 0 && (
+                    <div className="space-y-2 rounded-md border border-accent-life/30 bg-accent-life/[0.04] p-3">
+                      <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-accent-life/90">
+                        <span>Tools used during round</span>
+                        <span className="font-mono normal-case tracking-normal text-accent-life/70">
+                          {shard.toolCalls.length} call{shard.toolCalls.length === 1 ? "" : "s"}
+                          {shard.inferenceIterations
+                            ? ` · ${shard.inferenceIterations} turns`
+                            : ""}
+                        </span>
+                      </div>
+                      <ol className="space-y-2 text-xs">
+                        {shard.toolCalls.map((c, i) => (
+                          <li key={i} className="rounded border border-white/5 bg-zinc-950/60 p-2">
+                            <div className="flex items-center justify-between font-mono text-[10px] text-accent-life">
+                              <span>
+                                {c.ok ? "✓" : "✗"} {c.tool}
+                              </span>
+                              <span className="text-muted-foreground">{c.durationMs}ms</span>
+                            </div>
+                            {c.args && Object.keys(c.args).length > 0 && (
+                              <div className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
+                                {JSON.stringify(c.args)}
+                              </div>
+                            )}
+                            <div className="mt-1.5 line-clamp-3 whitespace-pre-wrap text-[11px] text-foreground/85">
+                              {c.summary}
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+
                   <div className="space-y-2 border-t border-zinc-800/80 pt-4">
                     <div className="text-[11px] uppercase tracking-wider text-white/55">
                       0G Storage rootHash

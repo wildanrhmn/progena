@@ -48,13 +48,20 @@ const PREVIEW_TRAITS = {
     "risk-clamp",
     "hybrid-macro-context-risk-clamp",
   ],
-  tools: ["fetch_price_history", "fetch_macro_indicators", "estimate_uncertainty"],
+  tools: [
+    "web_search",
+    "read_on_chain",
+    "fetch_token_price",
+    "onchain-macro-correlator",
+  ],
   soulPreview:
     "I am a deterministic child of Alpha × Beta. I weight macro signals over near-term momentum and clamp my predictions to avoid overconfidence.",
   generation: 1,
   synthesizedSoul: true,
   hybridSkillName: "hybrid-macro-context-risk-clamp",
   hybridSourceSkills: ["macro-context", "risk-clamp"] as [string, string],
+  synthesizedToolName: "onchain-macro-correlator",
+  synthesizedToolSourceTools: ["read_on_chain", "fetch_token_price"],
 };
 type PreviewStage =
   | "running"
@@ -86,6 +93,10 @@ const buildSteps = (parentA: AgentRow, parentB: AgentRow): LogStep[] => [
   },
   {
     label: "Fusing a hybrid skill via 0G Compute",
+    during: ["revealing"],
+  },
+  {
+    label: "Inventing a new tool via 0G Compute",
     during: ["revealing"],
   },
   { label: "Sharding child genome to 0G Storage", during: ["revealing"] },

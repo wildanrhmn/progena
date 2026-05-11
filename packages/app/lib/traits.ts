@@ -12,12 +12,16 @@ export type ChildTraits = {
   synthesizedSoul?: boolean;
   hybridSkillName?: string;
   hybridSourceSkills?: [string, string];
+  synthesizedToolName?: string;
+  synthesizedToolSourceTools?: string[];
 };
 
 function parseSynthesisHeaders(markdown: string | undefined): {
   soulSynthesized: boolean;
   hybridSkillName?: string;
   hybridSourceSkills?: [string, string];
+  synthesizedToolName?: string;
+  synthesizedToolSourceTools?: string[];
 } {
   if (!markdown) return { soulSynthesized: false };
   const re = /<!--\s*([a-zA-Z]+):\s*(.+?)\s*-->/g;
@@ -32,7 +36,18 @@ function parseSynthesisHeaders(markdown: string | undefined): {
   const sources = fields.hybridSourceSkills?.split(",");
   const hybridSourceSkills =
     sources && sources.length === 2 ? ([sources[0]!, sources[1]!] as [string, string]) : undefined;
-  return { soulSynthesized, hybridSkillName, hybridSourceSkills };
+  const synthesizedToolName = fields.synthesizedToolName;
+  const toolSources = fields.synthesizedToolSourceTools
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  return {
+    soulSynthesized,
+    hybridSkillName,
+    hybridSourceSkills,
+    synthesizedToolName,
+    synthesizedToolSourceTools: toolSources && toolSources.length > 0 ? toolSources : undefined,
+  };
 }
 
 export function buildTraitsFromGenome(genome: Genome): ChildTraits {
@@ -65,6 +80,8 @@ export function buildTraitsFromGenome(genome: Genome): ChildTraits {
     synthesizedSoul: synthesis.soulSynthesized || undefined,
     hybridSkillName: synthesis.hybridSkillName,
     hybridSourceSkills: synthesis.hybridSourceSkills,
+    synthesizedToolName: synthesis.synthesizedToolName,
+    synthesizedToolSourceTools: synthesis.synthesizedToolSourceTools,
   };
 }
 

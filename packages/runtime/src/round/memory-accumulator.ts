@@ -3,9 +3,10 @@ import type { Hex } from "viem";
 import type { RootHash, StorageBackend } from "@progena/sdk";
 import type { Logger } from "../lib/logger.js";
 import type { InferenceClient } from "./inference.js";
+import type { ToolCallRecord } from "../tools/types.js";
 
 export interface MemoryShard {
-  version: 1;
+  version: 1 | 2;
   agentId: string;
   roundId: string;
   questionHash: Hex;
@@ -14,6 +15,10 @@ export interface MemoryShard {
   scoreDelta: number;
   lesson: string;
   recordedAt: number;
+  toolCalls?: ToolCallRecord[];
+  inferenceModel?: string;
+  inferenceIterations?: number;
+  reasoningPreview?: string;
 }
 
 export interface MemoryChain {
@@ -37,6 +42,10 @@ export interface RecordOutcomeInput {
   outcome: number;
   scoreDelta: number;
   agentSystemPrompt?: string;
+  toolCalls?: ToolCallRecord[];
+  inferenceModel?: string;
+  inferenceIterations?: number;
+  reasoningPreview?: string;
 }
 
 export interface RecordOutcomeResult {
@@ -59,7 +68,7 @@ export class MemoryAccumulator {
     const lesson = await this.generateLesson(input);
 
     const shard: MemoryShard = {
-      version: 1,
+      version: 2,
       agentId: String(input.agentId),
       roundId: String(input.roundId),
       questionHash: input.questionHash,
@@ -68,6 +77,10 @@ export class MemoryAccumulator {
       scoreDelta: input.scoreDelta,
       lesson,
       recordedAt: this.now(),
+      toolCalls: input.toolCalls,
+      inferenceModel: input.inferenceModel,
+      inferenceIterations: input.inferenceIterations,
+      reasoningPreview: input.reasoningPreview,
     };
 
     const bytes = serializeShard(shard);
@@ -128,7 +141,7 @@ function stableStringify(value: unknown): string {
 export function deserializeShard(bytes: Uint8Array): MemoryShard {
   const text = new TextDecoder().decode(bytes);
   const parsed = JSON.parse(text) as MemoryShard;
-  if (parsed.version !== 1) {
+  if (parsed.version !== 1 && parsed.version !== 2) {
     throw new Error(`unsupported memory shard version: ${parsed.version}`);
   }
   return parsed;

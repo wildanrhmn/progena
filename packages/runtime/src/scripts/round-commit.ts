@@ -15,6 +15,8 @@ import {
 } from "../round/inference.js";
 import { createRoundChain } from "../round/round-chain.js";
 import { RoundRunner } from "../round/round-runner.js";
+import { buildDefaultToolRegistry } from "../tools/index.js";
+import { createAgenticInferenceClient } from "../round/agentic-inference.js";
 import {
   connectBroker,
   ensureLedger,
@@ -116,8 +118,39 @@ async function main(): Promise<void> {
     config,
     logger
   );
+
+  const tavilyApiKey = process.env.TAVILY_API_KEY ?? "";
+  const registry = buildDefaultToolRegistry({
+    publicClient,
+    addresses: {
+      agentGenome: config.addresses.agentGenome,
+      agentMemory: config.addresses.agentMemory,
+      reputationOracle: config.addresses.reputationOracle,
+      predictionRound: config.addresses.predictionRound,
+      agentMetadata:
+        (config.addresses as { agentMetadata?: `0x${string}` }).agentMetadata ??
+        ("0x0000000000000000000000000000000000000000" as `0x${string}`),
+    },
+    tavilyApiKey,
+  });
+  const proxyBaseUrl = process.env.OPENAI_PROXY_URL ?? "http://127.0.0.1:8787/v1";
+  const proxyModel = process.env.OPENAI_PROXY_MODEL ?? "deepseek/deepseek-chat-v3-0324";
+  const agenticInference = createAgenticInferenceClient({
+    baseUrl: proxyBaseUrl,
+    model: proxyModel,
+    registry,
+    logger,
+  });
+
   const commitStore = createFileCommitStore(commitStorePath);
-  const runner = new RoundRunner({ chain, storage, inference, commitStore, logger });
+  const runner = new RoundRunner({
+    chain,
+    storage,
+    inference,
+    agenticInference,
+    commitStore,
+    logger,
+  });
 
   logger.info("committing for agents", {
     agents: agentIds.map((a) => String(a)),

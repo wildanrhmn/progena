@@ -5,12 +5,17 @@ import { toAgentContext, buildPredictionUserPrompt } from "./agent-context.js";
 import { buildCommitHash, generateNonce } from "./commit.js";
 import type { CommitStore, StoredCommitment } from "./commit-store.js";
 import { inferAndExtract, type InferenceClient } from "./inference.js";
+import { extractPrediction } from "./prediction.js";
+import type { AgenticInferenceClient } from "./agentic-inference.js";
+import { resolveToolList } from "../tools/alias.js";
+import type { ToolCallRecord } from "../tools/types.js";
 import type { RoundChain } from "./round-chain.js";
 
 export interface RoundRunnerOptions {
   chain: RoundChain;
   storage: GenomeStorage;
   inference: InferenceClient;
+  agenticInference?: AgenticInferenceClient;
   commitStore: CommitStore;
   logger?: Logger;
   now?: () => number;
@@ -23,6 +28,9 @@ export interface CommitForAgentResult {
   commitTxHash: Hex;
   nonce: Hex;
   rawText: string;
+  toolCalls?: ToolCallRecord[];
+  inferenceModel?: string;
+  inferenceIterations?: number;
 }
 
 export interface RevealForAgentResult {
@@ -52,23 +60,67 @@ export class RoundRunner {
     const context = toAgentContext(genome);
     const userPrompt = buildPredictionUserPrompt(question);
 
-    log?.info("running inference", { skills: context.skillNames });
-    const { prediction, raw } = await inferAndExtract(this.opts.inference, {
-      systemPrompt: context.systemPrompt,
-      userPrompt,
-    });
+    let prediction: number;
+    let rawText: string;
+    let toolCalls: ToolCallRecord[] | undefined;
+    let inferenceModel: string | undefined;
+    let inferenceIterations: number | undefined;
+
+    const allowedTools = this.opts.agenticInference
+      ? resolveToolList(context.toolList)
+      : [];
+
+    if (this.opts.agenticInference && allowedTools.length > 0) {
+      log?.info("running agentic inference", {
+        skills: context.skillNames,
+        tools: allowedTools,
+      });
+      const agenticResult = await this.opts.agenticInference.run({
+        systemPrompt: context.systemPrompt,
+        userPrompt,
+        toolNames: allowedTools,
+        temperature: 0.4,
+        maxTokens: 1200,
+        maxIterations: 6,
+        context: { logger: log, agentId, roundId },
+      });
+      rawText = agenticResult.finalText;
+      prediction = extractPrediction(rawText);
+      toolCalls = agenticResult.toolCalls;
+      inferenceModel = agenticResult.model;
+      inferenceIterations = agenticResult.iterations;
+    } else {
+      log?.info("running single-prompt inference (no tools available)", {
+        skills: context.skillNames,
+      });
+      const { prediction: pred, raw } = await inferAndExtract(this.opts.inference, {
+        systemPrompt: context.systemPrompt,
+        userPrompt,
+      });
+      prediction = pred;
+      rawText = raw.text;
+      inferenceModel = raw.model;
+    }
 
     const nonce = generateNonce();
     const commitHash = buildCommitHash(roundId, agentId, prediction, nonce);
 
     const entryFee = await this.opts.chain.entryFeeOf(roundId);
-    log?.info("submitting commit", { prediction, commitHash, entryFee: String(entryFee) });
+    log?.info("submitting commit", {
+      prediction,
+      commitHash,
+      entryFee: String(entryFee),
+      toolCallCount: toolCalls?.length ?? 0,
+    });
     const commitTxHash = await this.opts.chain.commitPrediction(
       roundId,
       agentId,
       commitHash,
       entryFee
     );
+
+    const reasoningPreview =
+      rawText.length > 320 ? `${rawText.slice(0, 320)}…` : rawText;
 
     const stored: StoredCommitment = {
       roundId: String(roundId),
@@ -79,6 +131,10 @@ export class RoundRunner {
       committedAt: this.now(),
       commitTxHash,
       revealed: false,
+      inferenceModel,
+      inferenceIterations,
+      toolCalls,
+      reasoningPreview,
     };
     await this.opts.commitStore.save(stored);
 
@@ -89,7 +145,10 @@ export class RoundRunner {
       commitHash,
       commitTxHash,
       nonce,
-      rawText: raw.text,
+      rawText,
+      toolCalls,
+      inferenceModel,
+      inferenceIterations,
     };
   }
 

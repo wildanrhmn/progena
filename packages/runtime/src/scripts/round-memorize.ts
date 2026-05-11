@@ -18,6 +18,7 @@ import { loadConfig } from "../config.js";
 import { createLogger } from "../lib/logger.js";
 import { MemoryAccumulator } from "../round/memory-accumulator.js";
 import { createMemoryChain } from "../round/memory-chain.js";
+import { createFileCommitStore } from "../round/commit-store.js";
 import {
   createOpenClawInferenceClient,
   createStubInferenceClient,
@@ -50,6 +51,8 @@ async function main(): Promise<void> {
   const roundId = bigintArg("round");
   const agentIds = listArg("agents");
   const storePath = join(process.cwd(), "state", "rounds.json");
+  const commitStorePath = join(process.cwd(), "state", "commits.json");
+  const commitStore = createFileCommitStore(commitStorePath);
 
   const config = loadConfig();
   const logger = createLogger({
@@ -120,6 +123,8 @@ async function main(): Promise<void> {
       const distance = Math.abs(Number(commit.prediction) - Number(outcome));
       const scoreDelta = 10000 - 2 * distance;
 
+      const stored = await commitStore.get(roundId, agentId);
+
       const result = await accumulator.recordOutcome({
         agentId,
         roundId,
@@ -128,6 +133,10 @@ async function main(): Promise<void> {
         prediction: commit.prediction,
         outcome,
         scoreDelta,
+        toolCalls: stored?.toolCalls,
+        inferenceModel: stored?.inferenceModel,
+        inferenceIterations: stored?.inferenceIterations,
+        reasoningPreview: stored?.reasoningPreview,
       });
 
       const afterCount = (await memoryContract.read.shardCountOf([agentId])) as bigint;
