@@ -120,8 +120,55 @@ async function main(): Promise<void> {
     })
   );
 
-  console.log("\n=== Re-publishing trait JSON to AgentMetadata ===\n");
+  const legacyRegistry = "0x4560a71a07cf8172cfb0bf61b96a5480255cec8d" as Address;
+  const nameOfAbi = [
+    {
+      type: "function",
+      name: "nameOf",
+      stateMutability: "view",
+      inputs: [{ name: "tokenId", type: "uint256" }],
+      outputs: [{ name: "", type: "string" }],
+    },
+  ] as const;
+
+  console.log("\n=== Re-claiming names from legacy AgentRegistry on AgentMetadata ===\n");
   const totalMinted = (await genomeContract.read.totalMinted()) as bigint;
+  for (let id = 1n; id <= totalMinted; id++) {
+    try {
+      const already = (await agentMeta.read.hasName([id])) as boolean;
+      if (already) {
+        console.log(`#${id}  name already set, skipping`);
+        continue;
+      }
+      const owner = (await genomeContract.read.ownerOf([id])) as Address;
+      if (owner.toLowerCase() !== account.address.toLowerCase()) {
+        console.log(`#${id}  not owned by operator, skipping name`);
+        continue;
+      }
+      const legacyName = (await publicClient.readContract({
+        address: legacyRegistry,
+        abi: nameOfAbi,
+        functionName: "nameOf",
+        args: [id],
+      })) as string;
+      if (!legacyName || legacyName.length === 0) {
+        console.log(`#${id}  no legacy name, skipping`);
+        continue;
+      }
+      const txHash = (await agentMeta.write.setName([id, legacyName], {
+        account,
+        chain,
+      })) as Hex;
+      await publicClient
+        .waitForTransactionReceipt({ hash: txHash, timeout: 600_000, retryCount: 120 })
+        .catch(() => undefined);
+      console.log(`#${id}  name "${legacyName}" claimed  tx ${txHash}`);
+    } catch (err) {
+      console.log(`#${id}  name FAILED — ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`);
+    }
+  }
+
+  console.log("\n=== Re-publishing trait JSON to AgentMetadata ===\n");
   for (let id = 1n; id <= totalMinted; id++) {
     try {
       const already = (await agentMeta.read.isTraitsPublished([id])) as boolean;

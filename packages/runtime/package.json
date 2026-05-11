@@ -21,7 +21,8 @@
     "compute:services": "tsx src/scripts/compute-services.ts",
     "migrate:metadata": "tsx src/scripts/migrate-to-metadata.ts",
     "round:memorize": "tsx src/scripts/round-memorize.ts",
-    "round:auto-resolve": "tsx src/scripts/round-auto-resolve.ts"
+    "round:auto-resolve": "tsx src/scripts/round-auto-resolve.ts",
+    "round:skill-promote": "tsx src/scripts/round-skill-promote.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

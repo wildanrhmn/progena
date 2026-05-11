@@ -22,6 +22,7 @@ import { displayNameOf } from "@/hooks/use-agents";
 import { useNames, nameOrId } from "@/hooks/use-names";
 import { useDescendants } from "@/hooks/use-descendants";
 import { useTraits } from "@/hooks/use-traits";
+import { useEarnedSkills } from "@/hooks/use-earned-skills";
 import { Panel, BracketBox } from "@/components/ui/panel";
 import { SetNameButton } from "./set-name-dialog";
 import { ShardModal } from "./shard-modal";
@@ -45,6 +46,7 @@ export function AgentDetail({ agentId }: Props) {
   const { shards, count: shardCount } = useAgentMemoryShards(agentId, 12);
   const { descendants } = useDescendants(agentId);
   const { traits } = useTraits(agentId);
+  const { skills: earnedSkills } = useEarnedSkills(agentId);
   const { authenticated, user } = usePrivy();
   const [openShard, setOpenShard] = useState<{ hash: string; index: number } | undefined>();
 
@@ -221,19 +223,19 @@ export function AgentDetail({ agentId }: Props) {
             <Brain size={12} weight="bold" />
             Capabilities
           </div>
-          {!traits ? (
+          {!traits && earnedSkills.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No public traits published yet. The runtime daemon publishes
-              skills + tools + SOUL preview to AgentTraitCatalog after every
-              finalize.
+              No public capabilities yet. The runtime daemon publishes
+              inherited + synthesized capabilities to AgentMetadata after every
+              finalize, and earned skills accumulate as the agent plays rounds.
             </p>
           ) : (
             <div className="space-y-5">
-              {traits.skills.length > 0 && (
+              {traits && traits.skills.length > 0 && (
                 <div>
                   <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
                     <Lightning size={11} weight="bold" />
-                    Skills
+                    Inherited + synthesized at birth
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {traits.skills.map((s) => {
@@ -270,7 +272,50 @@ export function AgentDetail({ agentId }: Props) {
                   )}
                 </div>
               )}
-              {traits.tools.length > 0 && (
+              {earnedSkills.length > 0 && (
+                <div>
+                  <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
+                    <Trophy size={11} weight="bold" className="text-amber-300" />
+                    Earned in rounds
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {earnedSkills.map((s) => (
+                      <div
+                        key={s.skillName}
+                        className="flex items-start gap-2 rounded-md border border-amber-700/40 bg-amber-900/10 px-3 py-2"
+                      >
+                        <Trophy
+                          size={11}
+                          weight="fill"
+                          className="mt-0.5 shrink-0 text-amber-300"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-amber-200">
+                            <span>{s.skillName}</span>
+                            <Link
+                              href={`/rounds/${s.earnedInRound.toString()}`}
+                              className="font-mono normal-case tracking-normal text-amber-300/70 hover:text-amber-200"
+                            >
+                              · round #{s.earnedInRound.toString()}
+                            </Link>
+                          </div>
+                          {s.reasoning && (
+                            <p className="mt-1 text-[11px] leading-snug text-amber-100/70">
+                              {s.reasoning}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Synthesized by 0G Compute after the agent demonstrated a
+                    coherent pattern across multiple rounds. Skill markdown
+                    stored on 0G Storage; this record is anchored on AgentMetadata.
+                  </p>
+                </div>
+              )}
+              {traits && traits.tools.length > 0 && (
                 <div>
                   <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
                     <Wrench size={11} weight="bold" />
@@ -288,7 +333,7 @@ export function AgentDetail({ agentId }: Props) {
                   </div>
                 </div>
               )}
-              {traits.soulPreview && (
+              {traits && traits.soulPreview && (
                 <div>
                   <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
                     <span>SOUL preview</span>
