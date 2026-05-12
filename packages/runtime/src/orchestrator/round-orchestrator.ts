@@ -287,10 +287,11 @@ export class RoundOrchestrator {
     const eligibleAgents = await this.discoverEligibleAgents();
     log?.info?.("commit phase starting", { eligible: eligibleAgents.length });
 
-    // Per-agent commit takes ~30-90s (genome download + agentic inference +
-    // tx submit + receipt poll). Need a safety budget to avoid wasted reverts
-    // when the deadline is close.
-    const PER_COMMIT_BUDGET_S = 90;
+    // Per-agent commit takes ~25-55s (genome download + agentic inference +
+    // tx submit; receipt-poll timeouts are swallowed so they don't add to the
+    // measured time). 45s budget lets one more agent squeeze in when the
+    // deadline is close, without risking too many late reverts.
+    const PER_COMMIT_BUDGET_S = 45;
 
     for (const agentId of eligibleAgents) {
       const nowSec = Math.floor(Date.now() / 1000);

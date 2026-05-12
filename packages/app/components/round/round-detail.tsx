@@ -26,6 +26,7 @@ import { useNames, nameOrId } from "@/hooks/use-names";
 import { useAgentRows } from "@/hooks/use-agents";
 import { Panel, BracketBox } from "@/components/ui/panel";
 import { RoundStatusPill } from "./round-status-pill";
+import { RoundLifecycleTicker } from "./round-lifecycle-ticker";
 import { CommitDialog } from "./commit-dialog";
 import { RevealDialog } from "./reveal-dialog";
 import { useRoundQuestion } from "@/hooks/use-round-question";
@@ -59,6 +60,7 @@ export function RoundDetail({ roundId }: Props) {
 
   const [commitOpen, setCommitOpen] = useState(false);
   const [revealAgent, setRevealAgent] = useState<AgentRow | undefined>();
+  const [manualOverrideOpen, setManualOverrideOpen] = useState(false);
 
   if (isLoading && !round) {
     return (
@@ -169,46 +171,60 @@ export function RoundDetail({ roundId }: Props) {
             />
           </div>
 
+          <div className="border-t border-white/10 pt-5">
+            <RoundLifecycleTicker round={round} />
+          </div>
+
           {viewer && (
-            <div className="flex flex-wrap gap-3 border-t border-white/10 pt-5">
-              {round.status === "Open" && (
-                <button
-                  onClick={() => setCommitOpen(true)}
-                  disabled={!eligibleToCommit}
-                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Plus size={14} weight="bold" />
-                  {ownedAgents.length === 0
-                    ? "No agents to commit"
-                    : "Commit an agent"}
-                </button>
-              )}
-              {round.status === "RevealPhase" && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    Reveal:
-                  </span>
-                  {eligibleAgentsForReveal.length === 0 ? (
-                    <span className="text-xs text-muted-foreground">
-                      no saved commits in this browser
-                    </span>
-                  ) : (
-                    eligibleAgentsForReveal.map((a) => (
-                      <button
-                        key={a.id.toString()}
-                        onClick={() => setRevealAgent(a)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-700/50 bg-amber-900/20 px-3 py-1.5 text-xs text-amber-200 transition-colors hover:bg-amber-900/40"
-                      >
-                        <Lightning size={11} weight="bold" />
-                        {nameOrId(a.id, names) === a.id.toString()
-                          ? `#${a.id}`
-                          : nameOrId(a.id, names)}
-                      </button>
-                    ))
+            <details
+              open={manualOverrideOpen}
+              onToggle={(e) => setManualOverrideOpen((e.target as HTMLDetailsElement).open)}
+              className="border-t border-white/10 pt-3"
+            >
+              <summary className="cursor-pointer select-none text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
+                Advanced · manual override (operator only)
+              </summary>
+              <div className="mt-3 flex flex-wrap gap-3 rounded-md border border-zinc-800/60 bg-zinc-900/30 p-3">
+                <p className="w-full text-xs text-muted-foreground">
+                  The daemon handles commit, reveal, oracle, memorize, and skill-promote
+                  automatically. These manual controls are for emergency recovery only —
+                  use them if the daemon is offline or you want to commit a specific
+                  prediction by hand.
+                </p>
+                {round.status === "Open" && (
+                  <button
+                    onClick={() => setCommitOpen(true)}
+                    disabled={!eligibleToCommit}
+                    className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-1.5 text-xs text-zinc-200 transition-colors hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Plus size={11} weight="bold" />
+                    {ownedAgents.length === 0
+                      ? "No agents to commit manually"
+                      : "Manual commit"}
+                  </button>
+                )}
+                {round.status === "RevealPhase" &&
+                  eligibleAgentsForReveal.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] text-muted-foreground">
+                        Manual reveal:
+                      </span>
+                      {eligibleAgentsForReveal.map((a) => (
+                        <button
+                          key={a.id.toString()}
+                          onClick={() => setRevealAgent(a)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-amber-700/40 bg-amber-900/10 px-3 py-1 text-[11px] text-amber-200 transition-colors hover:bg-amber-900/30"
+                        >
+                          <Lightning size={10} weight="bold" />
+                          {nameOrId(a.id, names) === a.id.toString()
+                            ? `#${a.id}`
+                            : nameOrId(a.id, names)}
+                        </button>
+                      ))}
+                    </div>
                   )}
-                </div>
-              )}
-            </div>
+              </div>
+            </details>
           )}
         </div>
       </Panel>
