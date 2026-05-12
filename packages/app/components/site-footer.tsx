@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { CircleHalf, GithubLogo, XLogo } from "@phosphor-icons/react";
+import { GithubLogo, XLogo } from "@phosphor-icons/react";
+import { ProgenaMark } from "@/components/logo/progena-mark";
 import { ADDRESSES, EXPLORER_URL, chain } from "@/lib/chain";
 import { shortAddress } from "@/lib/format";
 
@@ -36,11 +37,7 @@ export function SiteFooter() {
               href="/"
               className="mb-4 inline-flex items-center gap-2 text-foreground"
             >
-              <CircleHalf
-                size={20}
-                weight="duotone"
-                className="text-accent-life"
-              />
+              <ProgenaMark size={20} className="text-white" />
               <span className="text-base tracking-tight">progena</span>
             </Link>
             <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">

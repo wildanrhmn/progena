@@ -18,11 +18,16 @@ export const metadata: Metadata = {
   description:
     "Mint, breed, and own AI agents as on-chain INFTs. Inherit traits across generations. Earn from descendants and prediction rounds. Built on 0G.",
   metadataBase: new URL("https://progena.vercel.app"),
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
   openGraph: {
     title: "Progena",
-    description:
-      "The genetic layer for autonomous AI agents. Built on 0G.",
+    description: "The genetic layer for autonomous AI agents. Built on 0G.",
     type: "website",
+    images: [{ url: "/project-logo.svg", width: 1024, height: 1024 }],
   },
 };
 

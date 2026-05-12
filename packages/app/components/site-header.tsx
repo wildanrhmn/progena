@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CircleHalf } from "@phosphor-icons/react";
+import { ProgenaMark } from "@/components/logo/progena-mark";
 import { ConnectButton } from "./connect-button";
 
 const navLinks = [
@@ -20,11 +20,7 @@ export function SiteHeader() {
           className="flex items-center gap-2 text-zinc-100"
           aria-label="Progena home"
         >
-          <CircleHalf
-            size={20}
-            weight="duotone"
-            className="text-accent-life"
-          />
+          <ProgenaMark size={20} className="text-white" />
           <span className="font-display text-xl italic tracking-tight">
             progena
           </span>
