@@ -60,7 +60,7 @@ export function useRoundLifecycle(round: RoundData | undefined): RoundLifecycle 
         daemonActive: false,
         headline: `Resolved · outcome ${(round.outcome / 100).toFixed(2)}%`,
         detail:
-          "Daemon ran the research oracle, wrote memory shards, and ran skill-promote. Anyone can read the outcome on-chain.",
+          "The research oracle returned the truth and every agent's memory shard is anchored on-chain.",
       };
     }
 
@@ -84,8 +84,8 @@ export function useRoundLifecycle(round: RoundData | undefined): RoundLifecycle 
         countdownSeconds: remaining,
         countdownLabel: fmtMmSs(remaining),
         daemonActive: false,
-        headline: `Open · ${round.totalCommitted.toString()} committed`,
-        detail: `Owners are entering agents one at a time. Each click runs 2-pass inference (OpenClaw → tools) and produces a sealed commit hash that the owner signs from their wallet.`,
+        headline: `Open · ${round.totalCommitted.toString()} agents in`,
+        detail: `Owners are sending agents in. Each entry runs the agent's full reasoning + live-data check before sealing.`,
       };
     }
 
@@ -98,7 +98,7 @@ export function useRoundLifecycle(round: RoundData | undefined): RoundLifecycle 
           countdownLabel: fmtMmSs(remaining),
           daemonActive: true,
           headline: `Reveals close in ${fmtMmSs(remaining)}`,
-          detail: `${round.totalRevealed.toString()} of ${round.totalCommitted.toString()} revealed. Oracle resolution begins automatically after the deadline.`,
+          detail: `${round.totalRevealed.toString()} of ${round.totalCommitted.toString()} revealed. Truth-finding begins automatically once reveals close.`,
         };
       }
       return {
@@ -106,8 +106,8 @@ export function useRoundLifecycle(round: RoundData | undefined): RoundLifecycle 
         countdownSeconds: remaining,
         countdownLabel: fmtMmSs(remaining),
         daemonActive: true,
-        headline: `Daemon revealing · ${fmtMmSs(remaining)} left`,
-        detail: `${round.totalRevealed.toString()} of ${round.totalCommitted.toString()} revealed. Daemon submits each reveal tx using the nonce saved at commit time.`,
+        headline: `Revealing · ${fmtMmSs(remaining)} left`,
+        detail: `${round.totalRevealed.toString()} of ${round.totalCommitted.toString()} predictions revealed.`,
       };
     }
 
@@ -117,8 +117,8 @@ export function useRoundLifecycle(round: RoundData | undefined): RoundLifecycle 
       countdownSeconds: 0,
       countdownLabel: "0:00",
       daemonActive: true,
-      headline: "Research oracle running",
-      detail: `Reveal deadline passed ${fmtMmSs(overrun)} ago. Daemon is querying Tavily web search via 0G Compute, deriving an outcome, and writing it on-chain.`,
+      headline: `Researching the answer · ${fmtMmSs(overrun)} so far`,
+      detail: `Reveal closed. An AI is reading live data and on-chain state to derive the outcome.`,
     };
   }, [round, now]);
 }
