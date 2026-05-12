@@ -4,6 +4,7 @@ import { createPublicClient, createWalletClient, getContract, http } from "viem"
 import { privateKeyToAccount } from "viem/accounts";
 import {
   GenomeStorage,
+  predictionRoundAbi,
   roundMetadataAbi,
   zgGalileo,
   zgMainnet,
@@ -166,43 +167,51 @@ async function main(): Promise<void> {
     });
   }
 
+  const predictionRoundForLookup = getContract({
+    address: config.addresses.predictionRound,
+    abi: predictionRoundAbi,
+    client: { public: publicClient },
+  });
+
+  const rawQuestionLookup = async (roundId: bigint) => {
+    const text = (await roundMetaContract.read.questionOf([roundId])) as string;
+    if (!text || text.length === 0) return null;
+    const data = await predictionRoundForLookup.read.roundOf([roundId]);
+    return { question: text, questionHash: data.questionHash as `0x${string}` };
+  };
+
+  const questionCache = new Map<
+    string,
+    { question: string; questionHash: `0x${string}` }
+  >();
+
   const questionLookup = async (roundId: bigint) => {
-    try {
-      const text = (await roundMetaContract.read.questionOf([roundId])) as string;
-      if (!text || text.length === 0) return null;
-      const data = await publicClient.readContract({
-        address: config.addresses.predictionRound,
-        abi: [
-          {
-            type: "function",
-            name: "roundOf",
-            stateMutability: "view",
-            inputs: [{ type: "uint256" }],
-            outputs: [
-              {
-                type: "tuple",
-                components: [
-                  { name: "questionHash", type: "bytes32" },
-                  { name: "commitDeadline", type: "uint64" },
-                  { name: "revealDeadline", type: "uint64" },
-                  { name: "entryFee", type: "uint256" },
-                  { name: "totalPool", type: "uint256" },
-                  { name: "totalCommitted", type: "uint256" },
-                  { name: "totalRevealed", type: "uint256" },
-                  { name: "outcome", type: "uint16" },
-                  { name: "resolved", type: "bool" },
-                ],
-              },
-            ],
-          },
-        ] as const,
-        functionName: "roundOf",
-        args: [roundId],
-      });
-      return { question: text, questionHash: data.questionHash as `0x${string}` };
-    } catch {
-      return null;
+    const key = roundId.toString();
+    const cached = questionCache.get(key);
+    if (cached) return cached;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      try {
+        const result = await rawQuestionLookup(roundId);
+        if (result) {
+          questionCache.set(key, result);
+          return result;
+        }
+        logger.warn("questionLookup returned null", {
+          roundId: key,
+          attempt,
+        });
+      } catch (err) {
+        logger.warn("questionLookup threw", {
+          roundId: key,
+          attempt,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      if (attempt < 4) {
+        await new Promise((r) => setTimeout(r, 500 * attempt));
+      }
     }
+    return null;
   };
 
   const roundOrchestrator = new RoundOrchestrator({

@@ -23,45 +23,10 @@ interface JsonResponse {
   body: unknown;
 }
 
-type CachedQuestion = { question: string; questionHash: `0x${string}` };
-
 export class PrepareCommitServer {
   private server?: Server;
-  private readonly questionCache = new Map<string, CachedQuestion>();
 
   constructor(private readonly opts: PrepareCommitServerOptions) {}
-
-  private async resolveQuestion(
-    roundId: bigint,
-    log?: Logger
-  ): Promise<CachedQuestion | null> {
-    const key = roundId.toString();
-    const cached = this.questionCache.get(key);
-    if (cached) return cached;
-    for (let attempt = 1; attempt <= 4; attempt++) {
-      try {
-        const result = await this.opts.questionLookup(roundId);
-        if (result) {
-          this.questionCache.set(key, result);
-          return result;
-        }
-        log?.warn?.("questionLookup returned null", {
-          roundId: key,
-          attempt,
-        });
-      } catch (err) {
-        log?.warn?.("questionLookup threw", {
-          roundId: key,
-          attempt,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      if (attempt < 4) {
-        await new Promise((r) => setTimeout(r, 500 * attempt));
-      }
-    }
-    return null;
-  }
 
   start(): void {
     const log = this.opts.logger?.child?.({ component: "prepare-commit-server" });
@@ -154,7 +119,7 @@ export class PrepareCommitServer {
       };
     }
 
-    const lookup = await this.resolveQuestion(roundId, log);
+    const lookup = await this.opts.questionLookup(roundId);
     if (!lookup) {
       return {
         status: 404,
