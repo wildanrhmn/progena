@@ -11,6 +11,7 @@ import { resolveToolList } from "../tools/alias.js";
 import type { ToolCallRecord } from "../tools/types.js";
 import type { RoundChain } from "./round-chain.js";
 import { OpenClawAgent } from "../openclaw/openclaw-agent.js";
+import { agentNameForToken } from "../openclaw/register-agent.js";
 
 export interface RoundRunnerOptions {
   chain: RoundChain;
@@ -88,6 +89,7 @@ export class RoundRunner {
         openclawBin: this.opts.openclawBin,
         thinking: "high",
         logger: log,
+        agentName: agentNameForToken(agentId),
       });
       try {
         const passOnePrompt = [

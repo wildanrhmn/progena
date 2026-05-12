@@ -16,12 +16,18 @@ import {
   type SynthesisResult,
 } from "../round/breed-synthesizer.js";
 
+export interface RegisterOpenClawAgentInput {
+  tokenId: bigint;
+  genome: Genome;
+}
+
 export interface CrossoverOrchestratorOptions {
   registry: AgentRegistry;
   storage: GenomeStorage;
   synthesizer?: BreedSynthesizer;
   logger?: Logger;
   computeCreatedAt?: (event: BreedingEvent) => number | Promise<number>;
+  registerOpenClawAgent?: (input: RegisterOpenClawAgentInput) => Promise<void>;
 }
 
 export class CrossoverOrchestrator {
@@ -106,6 +112,20 @@ export class CrossoverOrchestrator {
       childRootHash: upload.rootHash,
       txHash: setRootHashTxHash,
     });
+
+    if (this.opts.registerOpenClawAgent) {
+      try {
+        await this.opts.registerOpenClawAgent({
+          tokenId: event.childTokenId,
+          genome: childGenome,
+        });
+        log?.info("registered child as openclaw agent");
+      } catch (err) {
+        log?.warn("openclaw registration failed, continuing", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
     return {
       childTokenId: event.childTokenId,

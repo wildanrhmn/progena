@@ -24,6 +24,7 @@ import { useDescendants } from "@/hooks/use-descendants";
 import { useTraits } from "@/hooks/use-traits";
 import { useEarnedSkills } from "@/hooks/use-earned-skills";
 import { useFullSoul } from "@/hooks/use-full-soul";
+import { prettifySkillName as prettifyEarnedSkillName } from "@/lib/format-skill";
 import { Panel, BracketBox } from "@/components/ui/panel";
 import { SetNameButton } from "./set-name-dialog";
 import { ShardModal } from "./shard-modal";
@@ -458,13 +459,6 @@ const TAB_EASE = [0.16, 1, 0.3, 1] as const;
 type ProfileTabId = "personality" | "capabilities" | "earned";
 type Traits = NonNullable<ReturnType<typeof useTraits>["traits"]>;
 type EarnedSkill = ReturnType<typeof useEarnedSkills>["skills"][number];
-
-function prettifyEarnedSkillName(raw: string): string {
-  const stripped = raw.replace(/^earned-/, "");
-  if (stripped.length === 0) return raw;
-  const spaced = stripped.replace(/-/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
 
 function ProfileSection({
   agentId,

@@ -33,6 +33,18 @@ function friendlyToolName(name: string): string {
   );
 }
 
+interface DirectionalPrediction {
+  direction: "YES" | "NO" | "TOSSUP";
+  confidence: number;
+}
+
+function readPrediction(predictionPct: number): DirectionalPrediction {
+  if (predictionPct > 50) return { direction: "YES", confidence: predictionPct };
+  if (predictionPct < 50)
+    return { direction: "NO", confidence: 100 - predictionPct };
+  return { direction: "TOSSUP", confidence: 50 };
+}
+
 interface PreparedCommit {
   agentId: string;
   prediction: number;
@@ -497,12 +509,21 @@ function PreviewCard({
           <div className="text-xs uppercase tracking-wider text-accent-life/80">
             {agent ? displayNameOf(agent) : "Agent"} predicts
           </div>
-          <div className="mt-1 font-display text-6xl font-light tabular-nums text-accent-life">
-            {predictionPct.toFixed(2)}%
-          </div>
-          <div className="mt-1 text-xs text-zinc-500">
-            confidence the answer is YES
-          </div>
+          {(() => {
+            const r = readPrediction(predictionPct);
+            return (
+              <>
+                <div className="mt-1 font-display text-6xl font-light tabular-nums text-accent-life">
+                  {r.direction}
+                </div>
+                <div className="mt-1 text-xs text-zinc-500">
+                  {r.direction === "TOSSUP"
+                    ? "no strong lean either way"
+                    : `${r.confidence.toFixed(2)}% confidence`}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {hasDetails && (
@@ -561,24 +582,43 @@ function DetailsCard({
           <ArrowLeft size={11} weight="bold" />
           Back to prediction
         </button>
-        <div className="flex items-baseline gap-2 text-xs">
-          <span className="uppercase tracking-wider text-accent-life/80">
-            Predicted
-          </span>
-          <span className="font-mono text-accent-life">
-            {predictionPct.toFixed(2)}%
-          </span>
-        </div>
+        {(() => {
+          const r = readPrediction(predictionPct);
+          return (
+            <div className="flex items-baseline gap-2 text-xs">
+              <span className="uppercase tracking-wider text-accent-life/80">
+                Predicted
+              </span>
+              <span className="font-mono text-accent-life">
+                {r.direction === "TOSSUP"
+                  ? "TOSSUP"
+                  : `${r.direction} · ${r.confidence.toFixed(2)}%`}
+              </span>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="flex-1 space-y-5 overflow-y-auto px-6 pb-6">
-        {prepared.openclawReasoning && (
+        {prepared.openclawReasoning ? (
           <div>
             <div className="mb-2 text-xs uppercase tracking-wider text-accent-life/80">
               Reasoning
             </div>
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
               {prepared.openclawReasoning}
+            </p>
+          </div>
+        ) : (
+          <div>
+            <div className="mb-2 text-xs uppercase tracking-wider text-zinc-500">
+              Reasoning
+            </div>
+            <p className="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-muted-foreground">
+              No personality reasoning was captured for this prediction. The
+              agent either has no Soul on file, or its workspace-materialized
+              reasoning step was skipped — it went straight to gathering
+              evidence from its tools.
             </p>
           </div>
         )}

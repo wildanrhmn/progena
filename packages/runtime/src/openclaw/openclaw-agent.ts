@@ -24,6 +24,7 @@ export interface OpenClawAgentOptions {
   envOverrides?: Record<string, string>;
   spawnFn?: SpawnFn;
   logger?: Logger;
+  agentName?: string;
 }
 
 export interface AskResult {
@@ -37,7 +38,8 @@ export class OpenClawAgent {
 
   constructor(private readonly opts: OpenClawAgentOptions) {}
 
-  async ensureReady(): Promise<MaterializedWorkspace> {
+  async ensureReady(): Promise<MaterializedWorkspace | null> {
+    if (this.opts.agentName) return null;
     if (this.workspace) return this.workspace;
     this.workspace = await materializeWorkspace({
       genome: this.opts.genome,
@@ -52,23 +54,35 @@ export class OpenClawAgent {
     const ws = await this.ensureReady();
     const bin = this.opts.openclawBin ?? "openclaw";
     const thinking = this.opts.thinking ?? "high";
-    const args = ["agent", "--message", message, "--thinking", thinking];
+    const args = this.opts.agentName
+      ? [
+          "agent",
+          "--agent",
+          this.opts.agentName,
+          "--local",
+          "--message",
+          message,
+          "--thinking",
+          thinking,
+        ]
+      : ["agent", "--message", message, "--thinking", thinking];
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
-      OPENCLAW_HOME: ws.root,
-      OPENCLAW_WORKSPACE: ws.root,
+      ...(ws ? { OPENCLAW_HOME: ws.root, OPENCLAW_WORKSPACE: ws.root } : {}),
       ...this.opts.envOverrides,
     };
 
     this.opts.logger?.info?.("invoking openclaw agent", {
       bin,
-      workspace: ws.root,
+      workspace: ws?.root,
+      agentName: this.opts.agentName,
       thinking,
     });
 
+    const cwd = ws?.root ?? process.cwd();
     const spawn = this.opts.spawnFn ?? defaultSpawnFn;
-    const result = await spawn(bin, args, { env, cwd: ws.root });
+    const result = await spawn(bin, args, { env, cwd });
 
     if (result.code !== 0) {
       this.opts.logger?.warn?.("openclaw exited non-zero", {
@@ -82,6 +96,7 @@ export class OpenClawAgent {
   }
 
   async dispose(): Promise<void> {
+    if (this.opts.agentName) return;
     if (this.workspace) {
       await this.workspace.cleanup();
       this.workspace = null;

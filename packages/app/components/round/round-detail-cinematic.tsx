@@ -828,9 +828,25 @@ function CommittedAgentCard({
             <div className="font-mono text-xs uppercase tracking-wider text-accent-life">
               revealed
             </div>
-            <div className="font-display text-xl font-light text-foreground tabular-nums">
-              {((row.predictionBps ?? 0) / 100).toFixed(2)}%
-            </div>
+            {(() => {
+              const pct = (row.predictionBps ?? 0) / 100;
+              const direction =
+                pct > 50 ? "YES" : pct < 50 ? "NO" : "TOSSUP";
+              const confidence =
+                pct > 50 ? pct : pct < 50 ? 100 - pct : 50;
+              return (
+                <>
+                  <div className="font-display text-xl font-light text-foreground tabular-nums">
+                    {direction}
+                  </div>
+                  <div className="font-mono text-xs text-muted-foreground">
+                    {direction === "TOSSUP"
+                      ? "no lean"
+                      : `${confidence.toFixed(2)}%`}
+                  </div>
+                </>
+              );
+            })()}
             {showScore && (
               <div
                 className={

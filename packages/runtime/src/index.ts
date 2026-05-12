@@ -31,6 +31,7 @@ import { createFileCommitStore } from "./round/commit-store.js";
 import { PrepareCommitServer } from "./server/prepare-commit-server.js";
 import { RoundRunner } from "./round/round-runner.js";
 import { createRoundChain } from "./round/round-chain.js";
+import { registerOpenClawAgent } from "./openclaw/register-agent.js";
 
 function openclawAvailable(bin = "openclaw"): boolean {
   try {
@@ -93,6 +94,8 @@ async function main(): Promise<void> {
   logger.info("inference backend", { mode: inferenceMode });
 
   const synthesizer = new BreedSynthesizer({ inference: inferenceClient, logger });
+  const openclawRegisterEnabled =
+    process.env.OPENCLAW_AGENT_MODE !== "off" && openclawAvailable();
   const crossoverOrchestrator = new CrossoverOrchestrator({
     registry,
     storage: genomeStorage,
@@ -102,6 +105,15 @@ async function main(): Promise<void> {
       const block = await publicClient.getBlock({ blockNumber: event.blockNumber });
       return Number(block.timestamp);
     },
+    registerOpenClawAgent: openclawRegisterEnabled
+      ? async ({ tokenId, genome }) => {
+          await registerOpenClawAgent({
+            tokenId,
+            genome,
+            logger: logger.child({ component: "openclaw-register" }),
+          });
+        }
+      : undefined,
   });
 
   const tavilyApiKey = process.env.TAVILY_API_KEY ?? "";
