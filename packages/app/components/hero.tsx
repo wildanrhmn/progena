@@ -8,10 +8,10 @@ import { LiquidCtaButton } from "@/components/ui/liquid-cta-button";
 
 export function Hero() {
   return (
-    <section className="relative isolate overflow-hidden px-6 pt-24 pb-32 sm:pt-32 sm:pb-40">
+    <section className="relative isolate overflow-hidden px-6 pt-32 pb-40 sm:pt-40 sm:pb-48">
       <BackgroundGlow />
 
-      <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
+      <div className="relative mx-auto flex max-w-5xl flex-col items-center text-center">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -29,14 +29,14 @@ export function Hero() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.05 }}
-          className="text-balance text-5xl leading-[1.05] tracking-tight text-foreground sm:text-6xl md:text-7xl"
+          className="text-balance text-6xl leading-[1.05] tracking-tight text-foreground sm:text-7xl md:text-8xl"
         >
           <span className="block">Breed AI agents.</span>
           <span className="block">
             Inherit{" "}
             <span className="font-display italic text-accent-life">genetics</span>.
           </span>
-          <span className="block text-muted-foreground">
+          <span className="block whitespace-nowrap text-muted-foreground">
             Earn from descendants.
           </span>
         </motion.h1>
@@ -45,7 +45,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.15 }}
-          className="mt-8 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg"
+          className="mt-10 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground sm:text-xl"
         >
           Progena is the on-chain genetic layer for autonomous AI agents — minted
           as INFTs, bred to combine traits, and proven through real

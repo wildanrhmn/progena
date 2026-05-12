@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import { usePrivy } from "@privy-io/react-auth";
 import makeBlockie from "ethereum-blockies-base64";
 import {
@@ -12,11 +13,10 @@ import {
   CircleNotch,
   GitBranch,
   GitFork,
-  Lightning,
   Sparkle,
   Trophy,
-  Wrench,
 } from "@phosphor-icons/react";
+import { ExpandableText } from "@/components/ui/expandable";
 import { useAgent, useAgentMemoryShards } from "@/hooks/use-agent";
 import { displayNameOf } from "@/hooks/use-agents";
 import { useNames, nameOrId } from "@/hooks/use-names";
@@ -216,202 +216,42 @@ export function AgentDetail({ agentId }: Props) {
         />
       </div>
 
-      {/* Capabilities */}
+      <ProfileSection traits={traits} earnedSkills={earnedSkills} />
+
       <Panel>
         <div className="p-6">
-          <div className="mb-4 flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-white/55">
-            <Brain size={12} weight="bold" />
-            Capabilities
+          <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-white/65">
+            <GitFork size={12} weight="bold" />
+            Lineage
           </div>
-          {!traits && earnedSkills.length === 0 ? (
+          {isGenesis ? (
             <p className="text-sm text-muted-foreground">
-              No public capabilities yet. The runtime daemon publishes
-              inherited + synthesized capabilities to AgentMetadata after every
-              finalize, and earned skills accumulate as the agent plays rounds.
+              <span className="text-foreground">Genesis seed.</span> No parents
+              — this agent was authored from scratch and minted as generation
+              zero.
             </p>
           ) : (
-            <div className="space-y-5">
-              {traits && traits.skills.length > 0 && (
-                <div>
-                  <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
-                    <Lightning size={11} weight="bold" />
-                    Inherited + synthesized at birth
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {traits.skills.map((s) => {
-                      const isHybrid =
-                        traits.hybridSkillName !== undefined &&
-                        s === traits.hybridSkillName;
-                      return (
-                        <span
-                          key={s}
-                          title={
-                            isHybrid && traits.hybridSourceSkills
-                              ? `Synthesized at birth via 0G Compute from "${traits.hybridSourceSkills[0]}" + "${traits.hybridSourceSkills[1]}"`
-                              : undefined
-                          }
-                          className={
-                            isHybrid
-                              ? "inline-flex items-center gap-1 rounded-full border border-accent-lineage/50 bg-accent-lineage/15 px-2.5 py-1 text-[11px] uppercase tracking-wider text-accent-lineage"
-                              : "rounded-full border border-accent-life/40 bg-accent-life/10 px-2.5 py-1 text-[11px] uppercase tracking-wider text-accent-life"
-                          }
-                        >
-                          {isHybrid && <Sparkle size={9} weight="fill" />}
-                          {s}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  {traits.hybridSkillName && traits.hybridSourceSkills && (
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      <span className="text-accent-lineage">{traits.hybridSkillName}</span>{" "}
-                      was synthesized by 0G Compute at breed time from{" "}
-                      <span className="font-mono">{traits.hybridSourceSkills[0]}</span> +{" "}
-                      <span className="font-mono">{traits.hybridSourceSkills[1]}</span>.
-                    </p>
-                  )}
-                </div>
-              )}
-              {earnedSkills.length > 0 && (
-                <EarnedSkillsSection skills={earnedSkills} />
-              )}
-              {traits && traits.tools.length > 0 && (
-                <div>
-                  <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
-                    <Wrench size={11} weight="bold" />
-                    Tools
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {traits.tools.map((t) => {
-                      const isSynth =
-                        traits.synthesizedToolName !== undefined &&
-                        t === traits.synthesizedToolName;
-                      return (
-                        <span
-                          key={t}
-                          title={
-                            isSynth && traits.synthesizedToolSourceTools
-                              ? `Synthesized at birth via 0G Compute from ${traits.synthesizedToolSourceTools.join(", ")}`
-                              : undefined
-                          }
-                          className={
-                            isSynth
-                              ? "inline-flex items-center gap-1 rounded-full border border-accent-lineage/50 bg-accent-lineage/15 px-2.5 py-1 text-[11px] text-accent-lineage"
-                              : "rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-[11px] text-zinc-300"
-                          }
-                        >
-                          {isSynth && <Sparkle size={9} weight="fill" />}
-                          {t}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  {traits.synthesizedToolName && traits.synthesizedToolSourceTools && (
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      <span className="text-accent-lineage">{traits.synthesizedToolName}</span>{" "}
-                      was synthesized by 0G Compute at breed time from{" "}
-                      <span className="font-mono">{traits.synthesizedToolSourceTools.join(", ")}</span>.
-                    </p>
-                  )}
-                </div>
-              )}
-              {traits && traits.soulPreview && (
-                <div>
-                  <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
-                    <span>SOUL preview</span>
-                    {traits.synthesizedSoul && (
-                      <span
-                        title="Synthesized at birth by 0G Compute from both parents' SOULs"
-                        className="inline-flex items-center gap-1 rounded-full border border-accent-lineage/40 bg-accent-lineage/10 px-1.5 py-0.5 text-[9px] tracking-wider text-accent-lineage"
-                      >
-                        <Sparkle size={8} weight="fill" />
-                        AI-synthesized
-                      </span>
-                    )}
-                  </div>
-                  <blockquote className="border-l-2 border-accent-lineage/60 pl-3 text-sm italic leading-relaxed text-foreground/85">
-                    {traits.soulPreview}
-                    {traits.soulPreview.length >= 320 && "…"}
-                  </blockquote>
-                </div>
-              )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ParentTile
+                id={agent.parentA}
+                label="Parent A"
+                name={names.get(agent.parentA.toString())}
+              />
+              <ParentTile
+                id={agent.parentB}
+                label="Parent B"
+                name={names.get(agent.parentB.toString())}
+              />
             </div>
           )}
         </div>
       </Panel>
 
-      {/* Lineage + Memory */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Panel>
-          <div className="p-6">
-            <div className="mb-4 flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-white/55">
-              <GitFork size={12} weight="bold" />
-              Lineage
-            </div>
-            {isGenesis ? (
-              <p className="text-sm text-muted-foreground">
-                <span className="text-foreground">Genesis seed.</span> No
-                parents — this agent was authored from scratch and minted as
-                generation zero.
-              </p>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <ParentTile id={agent.parentA} label="Parent A" name={names.get(agent.parentA.toString())} />
-                <ParentTile id={agent.parentB} label="Parent B" name={names.get(agent.parentB.toString())} />
-              </div>
-            )}
-          </div>
-        </Panel>
-
-        <Panel>
-          <div className="p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-white/55">
-                <Sparkle size={11} weight="bold" />
-                Memory shards
-              </div>
-              <span className="font-mono text-xs text-muted-foreground">
-                {shardCount.toString()} total
-              </span>
-            </div>
-            {shards.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No memory recorded yet. Lessons accumulate after every round
-                this agent participates in, indexed on the AgentMemory contract
-                and stored on 0G.
-              </p>
-            ) : (
-              <ul className="divide-y divide-white/10">
-                {shards.map((hash, i) => {
-                  const shardNum = Number(shardCount) - i;
-                  return (
-                    <li key={`${hash}-${i}`}>
-                      <button
-                        type="button"
-                        onClick={() => setOpenShard({ hash, index: shardNum })}
-                        title="Open shard — fetched from 0G Storage"
-                        className="group flex w-full items-center justify-between gap-3 py-2 text-left text-xs transition-colors hover:bg-white/[0.02]"
-                      >
-                        <span className="font-mono text-muted-foreground">
-                          shard {shardNum}
-                        </span>
-                        <span className="flex items-center gap-1.5 font-mono text-foreground transition-colors group-hover:text-accent-lineage">
-                          {shortHash(hash, 8, 6)}
-                          <ArrowUpRight
-                            size={10}
-                            weight="bold"
-                            className="text-muted-foreground transition-colors group-hover:text-accent-lineage"
-                          />
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </Panel>
-      </div>
+      <RecentRoundsSection
+        shards={shards}
+        shardCount={Number(shardCount)}
+        onOpen={(hash, index) => setOpenShard({ hash, index })}
+      />
 
       {/* Descendants */}
       <Panel>
@@ -608,55 +448,394 @@ function ParentTile({
   );
 }
 
+const TAB_EASE = [0.16, 1, 0.3, 1] as const;
+
+type ProfileTabId = "personality" | "skills" | "tools" | "earned";
+type Traits = NonNullable<ReturnType<typeof useTraits>["traits"]>;
 type EarnedSkill = ReturnType<typeof useEarnedSkills>["skills"][number];
 
-function EarnedSkillsSection({ skills }: { skills: EarnedSkill[] }) {
-  const [allOpen, setAllOpen] = useState(false);
+function ProfileSection({
+  traits,
+  earnedSkills,
+}: {
+  traits: Traits | undefined;
+  earnedSkills: EarnedSkill[];
+}) {
+  const hasSkills = traits && traits.skills.length > 0;
+  const hasTools = traits && traits.tools.length > 0;
+  const hasSoul = traits && !!traits.soulPreview;
+  const earnedCount = earnedSkills.length;
+
+  const tabs: Array<{ id: ProfileTabId; label: string; disabled: boolean }> = [
+    { id: "personality", label: "Personality", disabled: !hasSoul },
+    { id: "skills", label: "Skills", disabled: !hasSkills },
+    { id: "tools", label: "Tools", disabled: !hasTools },
+    {
+      id: "earned",
+      label: earnedCount > 0 ? `Earned · ${earnedCount}` : "Earned",
+      disabled: earnedCount === 0,
+    },
+  ];
+
+  const firstAvailable =
+    tabs.find((t) => !t.disabled)?.id ?? ("personality" as ProfileTabId);
+  const [active, setActive] = useState<ProfileTabId>(firstAvailable);
+
+  if (!traits && earnedCount === 0) {
+    return (
+      <Panel>
+        <div className="p-6">
+          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-white/65">
+            <Brain size={12} weight="bold" />
+            Profile
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Personality and capabilities will appear here once this agent
+            finalizes and plays its first round.
+          </p>
+        </div>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel>
+      <div className="p-6">
+        <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-white/65">
+          <Brain size={12} weight="bold" />
+          Profile
+        </div>
+        <div className="mb-5 flex flex-wrap gap-2">
+          {tabs.map((t) => {
+            const isActive = t.id === active;
+            if (t.disabled) return null;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActive(t.id)}
+                className={
+                  isActive
+                    ? "rounded-full bg-white px-4 py-1.5 text-xs font-medium text-neutral-950"
+                    : "rounded-full border border-zinc-800 bg-zinc-900/50 px-4 py-1.5 text-xs text-zinc-300 transition-colors hover:border-zinc-600 hover:text-foreground"
+                }
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={active}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.3, ease: TAB_EASE }}
+          >
+            {active === "personality" && hasSoul && traits && (
+              <PersonalityTab traits={traits} />
+            )}
+            {active === "skills" && hasSkills && traits && (
+              <SkillsTab traits={traits} />
+            )}
+            {active === "tools" && hasTools && traits && (
+              <ToolsTab traits={traits} />
+            )}
+            {active === "earned" && (
+              <EarnedTab skills={earnedSkills} />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </Panel>
+  );
+}
+
+function PersonalityTab({ traits }: { traits: Traits }) {
+  return (
+    <div className="space-y-3">
+      {traits.synthesizedSoul && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-accent-lineage/40 bg-accent-lineage/10 px-2 py-0.5 text-xs tracking-wider text-accent-lineage">
+          <Sparkle size={10} weight="fill" />
+          AI-synthesized at birth
+        </span>
+      )}
+      <ExpandableText
+        tone="lineage"
+        label="SOUL.md preview"
+        text={traits.soulPreview ?? ""}
+        previewLines={4}
+        footnote="The agent's personality. Drives how it reasons before any tools fire."
+      />
+    </div>
+  );
+}
+
+function SkillsTab({ traits }: { traits: Traits }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5">
+        {traits.skills.map((s) => {
+          const isHybrid =
+            traits.hybridSkillName !== undefined && s === traits.hybridSkillName;
+          return (
+            <span
+              key={s}
+              title={
+                isHybrid && traits.hybridSourceSkills
+                  ? `Synthesized from "${traits.hybridSourceSkills[0]}" + "${traits.hybridSourceSkills[1]}"`
+                  : undefined
+              }
+              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-xs text-zinc-200"
+            >
+              {isHybrid && (
+                <Sparkle
+                  size={10}
+                  weight="fill"
+                  className="text-accent-lineage"
+                />
+              )}
+              {s}
+            </span>
+          );
+        })}
+      </div>
+      {traits.hybridSkillName && traits.hybridSourceSkills && (
+        <p className="text-xs text-muted-foreground">
+          <span className="text-accent-lineage">{traits.hybridSkillName}</span>{" "}
+          was synthesized at breed time from{" "}
+          <span className="font-mono">{traits.hybridSourceSkills[0]}</span> +{" "}
+          <span className="font-mono">{traits.hybridSourceSkills[1]}</span>.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ToolsTab({ traits }: { traits: Traits }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5">
+        {traits.tools.map((t) => {
+          const isSynth =
+            traits.synthesizedToolName !== undefined &&
+            t === traits.synthesizedToolName;
+          return (
+            <span
+              key={t}
+              title={
+                isSynth && traits.synthesizedToolSourceTools
+                  ? `Synthesized from ${traits.synthesizedToolSourceTools.join(", ")}`
+                  : undefined
+              }
+              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-xs text-zinc-200"
+            >
+              {isSynth && (
+                <Sparkle
+                  size={10}
+                  weight="fill"
+                  className="text-accent-lineage"
+                />
+              )}
+              {t}
+            </span>
+          );
+        })}
+      </div>
+      {traits.synthesizedToolName && traits.synthesizedToolSourceTools && (
+        <p className="text-xs text-muted-foreground">
+          <span className="text-accent-lineage">
+            {traits.synthesizedToolName}
+          </span>{" "}
+          was synthesized at breed time from{" "}
+          <span className="font-mono">
+            {traits.synthesizedToolSourceTools.join(", ")}
+          </span>
+          .
+        </p>
+      )}
+    </div>
+  );
+}
+
+function EarnedTab({ skills }: { skills: EarnedSkill[] }) {
+  if (skills.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No earned skills yet. After this agent shows a coherent pattern across
+        multiple rounds, the protocol mints a new earned skill it keeps for
+        life.
+      </p>
+    );
+  }
   const sorted = [...skills].sort((a, b) =>
     Number(b.earnedInRound - a.earnedInRound)
   );
-  const visible = sorted.slice(0, 3);
-  const hidden = sorted.slice(3);
-
   return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-white/65">
-          <Trophy size={12} weight="bold" className="text-amber-300" />
-          Earned in rounds · {skills.length}
+    <ul className="flex flex-col gap-1.5">
+      {sorted.map((s) => (
+        <li key={s.skillName}>
+          <EarnedSkillRow skill={s} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function RecentRoundsSection({
+  shards,
+  shardCount,
+  onOpen,
+}: {
+  shards: string[];
+  shardCount: number;
+  onOpen: (hash: string, index: number) => void;
+}) {
+  const [allOpen, setAllOpen] = useState(false);
+  const visible = shards.slice(0, 5);
+  return (
+    <Panel>
+      <div className="p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-white/65">
+            <Sparkle size={12} weight="bold" />
+            Recent rounds
+          </div>
+          <span className="font-mono text-xs text-muted-foreground">
+            {shardCount} total
+          </span>
         </div>
-        {hidden.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setAllOpen(true)}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-          >
-            View all {skills.length}
-            <ArrowUpRight size={11} weight="bold" />
-          </button>
+        {shards.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No memory recorded yet. Lessons accumulate after every round this
+            agent plays.
+          </p>
+        ) : (
+          <>
+            <ul className="divide-y divide-white/10">
+              {visible.map((hash, i) => {
+                const shardNum = shardCount - i;
+                return (
+                  <ShardRow
+                    key={`${hash}-${i}`}
+                    hash={hash}
+                    shardNum={shardNum}
+                    onOpen={onOpen}
+                  />
+                );
+              })}
+            </ul>
+            {shardCount > visible.length && (
+              <button
+                type="button"
+                onClick={() => setAllOpen(true)}
+                className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                View all {shardCount}
+                <ArrowUpRight size={11} weight="bold" />
+              </button>
+            )}
+          </>
         )}
       </div>
-      <div className="flex flex-col gap-1.5">
-        {visible.map((s) => (
-          <EarnedSkillRow key={s.skillName} skill={s} />
-        ))}
-      </div>
-      {hidden.length > 0 && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          + {hidden.length} more — click View all to see every earned skill.
-        </p>
-      )}
-      {!skills[0]?.reasoning ? null : (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Earned by demonstrating a coherent pattern across multiple rounds.
-          Skill stored on 0G Storage, anchored on AgentMetadata.
-        </p>
-      )}
-      <AllEarnedSkillsModal
+      <AllShardsModal
         open={allOpen}
-        skills={sorted}
+        shards={shards}
+        shardCount={shardCount}
         onClose={() => setAllOpen(false)}
+        onOpen={(hash, index) => {
+          setAllOpen(false);
+          onOpen(hash, index);
+        }}
       />
+    </Panel>
+  );
+}
+
+function ShardRow({
+  hash,
+  shardNum,
+  onOpen,
+}: {
+  hash: string;
+  shardNum: number;
+  onOpen: (hash: string, index: number) => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onOpen(hash, shardNum)}
+        className="group flex w-full items-center justify-between gap-3 py-2.5 text-left text-xs transition-colors hover:bg-white/[0.02]"
+      >
+        <span className="font-mono text-muted-foreground">
+          shard {shardNum}
+        </span>
+        <span className="flex items-center gap-1.5 font-mono text-foreground transition-colors group-hover:text-accent-lineage">
+          {shortHash(hash, 8, 6)}
+          <ArrowUpRight
+            size={10}
+            weight="bold"
+            className="text-muted-foreground transition-colors group-hover:text-accent-lineage"
+          />
+        </span>
+      </button>
+    </li>
+  );
+}
+
+function AllShardsModal({
+  open,
+  shards,
+  shardCount,
+  onClose,
+  onOpen,
+}: {
+  open: boolean;
+  shards: string[];
+  shardCount: number;
+  onClose: () => void;
+  onOpen: (hash: string, index: number) => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-10">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+      />
+      <div className="relative max-h-[calc(100vh-5rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-800/80 bg-zinc-950 p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-[0.18em] text-accent-lineage/80">
+              Every memory shard
+            </div>
+            <h3 className="font-display text-xl tracking-tight text-foreground">
+              {shardCount} round{shardCount === 1 ? "" : "s"} played
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Close
+          </button>
+        </div>
+        <ul className="divide-y divide-white/10">
+          {shards.map((hash, i) => (
+            <ShardRow
+              key={`${hash}-${i}`}
+              hash={hash}
+              shardNum={shardCount - i}
+              onOpen={onOpen}
+            />
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
@@ -689,48 +868,3 @@ function EarnedSkillRow({ skill }: { skill: EarnedSkill }) {
   );
 }
 
-function AllEarnedSkillsModal({
-  open,
-  skills,
-  onClose,
-}: {
-  open: boolean;
-  skills: EarnedSkill[];
-  onClose: () => void;
-}) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-10">
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close"
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      />
-      <div className="relative max-h-[calc(100vh-5rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-zinc-800/80 bg-zinc-950 p-6 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.18em] text-amber-300/80">
-              Every earned skill
-            </div>
-            <h3 className="font-display text-xl tracking-tight text-foreground">
-              {skills.length} skills · earned in rounds
-            </h3>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            Close
-          </button>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          {skills.map((s) => (
-            <EarnedSkillRow key={s.skillName} skill={s} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
