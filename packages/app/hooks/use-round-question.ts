@@ -8,7 +8,14 @@ export function useRoundQuestion(roundId: bigint | undefined) {
     ...roundMetadataContract,
     functionName: "questionOf",
     args: roundId !== undefined ? [roundId] : undefined,
-    query: { enabled: roundId !== undefined, staleTime: 60_000 },
+    query: {
+      enabled: roundId !== undefined,
+      staleTime: 4_000,
+      refetchInterval: (query) => {
+        const text = (query.state.data as string | undefined) ?? "";
+        return text.length > 0 ? false : 4_000;
+      },
+    },
   });
   const text = (data as string | undefined) ?? "";
   return {

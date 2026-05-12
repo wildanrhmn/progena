@@ -2,52 +2,48 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { usePrivy } from "@privy-io/react-auth";
-import { formatEther, type Address } from "viem";
-import {
-  ArrowLeft,
-  ArrowUpRight,
-  CircleNotch,
-  Coin,
-  EyeSlash,
-  Lightning,
-  Plus,
-  Trophy,
-  Users,
-} from "@phosphor-icons/react";
+import { type Address } from "viem";
+import { ArrowLeft, CircleNotch } from "@phosphor-icons/react";
 import {
   useRound,
   useRoundAgents,
-  useCommitment,
+  type RoundData,
 } from "@/hooks/use-rounds";
 import { useOwnedAgents } from "@/hooks/use-owned-agents";
-import { useNames, nameOrId } from "@/hooks/use-names";
 import { useAgentRows } from "@/hooks/use-agents";
-import { Panel, BracketBox } from "@/components/ui/panel";
-import { RoundStatusPill } from "./round-status-pill";
-import { RoundLifecycleTicker } from "./round-lifecycle-ticker";
-import { CommitDialog } from "./commit-dialog";
-import { EnterRoundDialog } from "./enter-round-dialog";
-import { RevealDialog } from "./reveal-dialog";
 import { useRoundQuestion } from "@/hooks/use-round-question";
-import { loadCommit } from "@/lib/commit";
+import { useRoundLifecycle } from "@/hooks/use-round-lifecycle";
+import { useReadContracts } from "wagmi";
+import { predictionRoundContract } from "@/lib/contracts";
+import { ADDRESSES } from "@/lib/chain";
+import { EnterRoundDialog } from "./enter-round-dialog";
 import {
-  formatRelative,
-  formatTimestamp,
-  shortAddress,
-  shortHash,
-} from "@/lib/format";
-import type { AgentRow } from "@/hooks/use-agents";
+  CINEMATIC_EASE,
+  CommittedAgents,
+  OracleResearchPanel,
+  ResolvedSummaryPanel,
+  RevealStatusPanel,
+  RoundAnchors,
+  RoundCountdown,
+  RoundHero,
+  RoundPhaseTrack,
+  YourTurnPanel,
+  type CommittedAgentView,
+} from "./round-detail-cinematic";
+import { Panel } from "@/components/ui/panel";
+import { motion } from "framer-motion";
 
 type Props = { roundId: bigint };
 
 export function RoundDetail({ roundId }: Props) {
   const { round, isLoading, error, refetch } = useRound(roundId);
   const { data: agentIdsRaw, refetch: refetchAgents } = useRoundAgents(roundId);
-  const agentIds = (agentIdsRaw as readonly bigint[] | undefined) ?? [];
-  const committedAgents = useAgentRows([...agentIds]);
-
+  const agentIds = useMemo<bigint[]>(
+    () => ((agentIdsRaw as readonly bigint[] | undefined) ?? []).slice(),
+    [agentIdsRaw]
+  );
+  const { agents: committedAgents } = useAgentRows(agentIds);
   const { text: question } = useRoundQuestion(roundId);
 
   const { authenticated, user } = usePrivy();
@@ -56,44 +52,65 @@ export function RoundDetail({ roundId }: Props) {
   ) as Address | undefined;
   const { agents: ownedAgents } = useOwnedAgents(viewer);
 
-  // names for committed agents
-  const names = useNames([...agentIds]);
+  const lifecycle = useRoundLifecycle(round);
 
-  const [commitOpen, setCommitOpen] = useState(false);
+  const commitmentCalls = useMemo(
+    () =>
+      agentIds.map((id) => ({
+        ...predictionRoundContract,
+        functionName: "commitmentOf",
+        args: [roundId, id] as const,
+      })),
+    [agentIds, roundId]
+  );
+  const { data: commitmentResults } = useReadContracts({
+    contracts: commitmentCalls,
+    allowFailure: true,
+    query: {
+      enabled: agentIds.length > 0,
+      staleTime: 4_000,
+      refetchInterval: 5_000,
+    },
+  });
+
   const [enterOpen, setEnterOpen] = useState(false);
-  const [revealAgent, setRevealAgent] = useState<AgentRow | undefined>();
-  const [manualOverrideOpen, setManualOverrideOpen] = useState(false);
 
   if (isLoading && !round) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
-        <CircleNotch size={14} className="mr-2 animate-spin" />
-        Reading round #{roundId.toString()} from 0G mainnet…
+      <div className="container mx-auto max-w-5xl px-4 py-10">
+        <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+          <CircleNotch size={14} className="mr-2 animate-spin" />
+          Reading round #{roundId.toString()} from 0G mainnet…
+        </div>
       </div>
     );
   }
 
   if (error || !round) {
     return (
-      <div className="rounded-lg border border-danger/30 bg-danger/5 p-6">
-        <div className="mb-1 text-sm font-medium text-foreground">
-          Couldn't load round #{roundId.toString()}
+      <div className="container mx-auto max-w-5xl px-4 py-10">
+        <div className="rounded-lg border border-red-900/40 bg-red-950/20 p-6">
+          <div className="mb-1 text-sm font-medium text-foreground">
+            Couldn't load round #{roundId.toString()}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {error?.message ?? "Round may not exist on this network."}
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {error?.message ?? "Round may not exist on this network."}
-        </p>
       </div>
     );
   }
 
-  const eligibleToCommit = round.status === "Open" && ownedAgents.length > 0;
-  const eligibleAgentsForReveal = ownedAgents.filter((a) => {
-    if (round.status !== "RevealPhase") return false;
-    return !!loadCommit(roundId, a.id);
+  const committedViews = buildCommittedViews({
+    round,
+    agentIds,
+    rows: committedAgents,
+    viewer,
+    commitmentResults,
   });
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto max-w-5xl space-y-6 px-4 py-10">
       <Link
         href="/rounds"
         className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -102,263 +119,43 @@ export function RoundDetail({ roundId }: Props) {
         Back to rounds
       </Link>
 
-      {/* Hero */}
+      <RoundHero round={round} question={question} phase={lifecycle.phase} />
+
       <Panel>
-        <div className="grid gap-6 p-6 sm:p-8">
-          <div className="flex flex-wrap items-center gap-2">
-            <RoundStatusPill status={round.status} />
-            {round.resolved && (
-              <span className="rounded-full border border-accent-life/40 bg-accent-life/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-accent-life">
-                Outcome {(round.outcome / 100).toFixed(2)}%
-              </span>
-            )}
-            <span className="ml-auto font-mono text-xs text-muted-foreground">
-              Round #{round.id.toString()}
-            </span>
-          </div>
-
-          <div>
-            <div className="mb-2 text-[11px] uppercase tracking-[0.16em] text-white/55">
-              Question
-            </div>
-            {question ? (
-              <h1 className="text-balance font-display text-3xl leading-snug tracking-tight text-foreground sm:text-4xl">
-                {question}
-              </h1>
-            ) : (
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Question text not registered in this UI's catalog.
-                </p>
-                <p className="mt-1 font-mono text-xs text-foreground/70">
-                  hash {round.questionHash}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Field
-              label="Entry fee"
-              value={`${formatEther(round.entryFee)} OG`}
-              icon={<Coin size={11} weight="bold" />}
-            />
-            <Field
-              label="Prize pool"
-              value={`${formatEther(round.totalPool)} OG`}
-              icon={<Trophy size={11} weight="bold" />}
-            />
-            <Field
-              label="Committed"
-              value={round.totalCommitted.toString()}
-              icon={<Users size={11} weight="bold" />}
-            />
-            <Field
-              label="Revealed"
-              value={round.totalRevealed.toString()}
-              icon={<EyeSlash size={11} weight="bold" />}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <DeadlineRow
-              label="Commit ends"
-              ts={round.commitDeadline}
-              active={round.status === "Open"}
-            />
-            <DeadlineRow
-              label="Reveal ends"
-              ts={round.revealDeadline}
-              active={round.status === "RevealPhase"}
-            />
-          </div>
-
-          <div className="border-t border-white/10 pt-5">
-            <RoundLifecycleTicker round={round} />
-          </div>
-
-          {viewer && round.status === "Open" && (
-            <div className="rounded-lg border border-accent-life/30 bg-accent-life/[0.04] p-4">
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="mb-1 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-accent-life/90">
-                    <Lightning size={11} weight="fill" />
-                    Your turn
-                  </div>
-                  <div className="text-sm font-medium text-foreground">
-                    Send one of your agents into this round
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    The runtime materializes your agent's genome, runs 2-pass
-                    inference (OpenClaw reasoning → function-calling tools),
-                    returns a sealed commit hash, and you sign the tx that
-                    pays {formatEther(round.entryFee)} OG entry fee. After the
-                    commit deadline the daemon reveals using the saved nonce.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEnterOpen(true)}
-                  disabled={ownedAgents.length === 0}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-medium text-neutral-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Plus size={12} weight="bold" />
-                  {ownedAgents.length === 0
-                    ? "No agents to enter"
-                    : `Enter agent · ${formatEther(round.entryFee)} OG`}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {viewer && (
-            <details
-              open={manualOverrideOpen}
-              onToggle={(e) => setManualOverrideOpen((e.target as HTMLDetailsElement).open)}
-              className="border-t border-white/10 pt-3"
-            >
-              <summary className="cursor-pointer select-none text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground">
-                Advanced · manual override (operator only)
-              </summary>
-              <div className="mt-3 flex flex-wrap gap-3 rounded-md border border-zinc-800/60 bg-zinc-900/30 p-3">
-                <p className="w-full text-xs text-muted-foreground">
-                  The daemon handles commit, reveal, oracle, memorize, and skill-promote
-                  automatically. These manual controls are for emergency recovery only —
-                  use them if the daemon is offline or you want to commit a specific
-                  prediction by hand.
-                </p>
-                {round.status === "Open" && (
-                  <button
-                    onClick={() => setCommitOpen(true)}
-                    disabled={!eligibleToCommit}
-                    className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-1.5 text-xs text-zinc-200 transition-colors hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Plus size={11} weight="bold" />
-                    {ownedAgents.length === 0
-                      ? "No agents to commit manually"
-                      : "Manual commit"}
-                  </button>
-                )}
-                {round.status === "RevealPhase" &&
-                  eligibleAgentsForReveal.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] text-muted-foreground">
-                        Manual reveal:
-                      </span>
-                      {eligibleAgentsForReveal.map((a) => (
-                        <button
-                          key={a.id.toString()}
-                          onClick={() => setRevealAgent(a)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-amber-700/40 bg-amber-900/10 px-3 py-1 text-[11px] text-amber-200 transition-colors hover:bg-amber-900/30"
-                        >
-                          <Lightning size={10} weight="bold" />
-                          {nameOrId(a.id, names) === a.id.toString()
-                            ? `#${a.id}`
-                            : nameOrId(a.id, names)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-              </div>
-            </details>
-          )}
-        </div>
-      </Panel>
-
-      {/* Committed agents */}
-      <Panel>
-        <div className="p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-white/55">
-              <Users size={12} weight="bold" />
-              Committed agents
-            </div>
-            <span className="font-mono text-xs text-muted-foreground">
-              {committedAgents.agents.length} of {agentIds.length}
-            </span>
-          </div>
-          {agentIds.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No agents have committed to this round yet.
-            </p>
-          ) : (
-            <ul className="divide-y divide-white/10">
-              {committedAgents.agents.map((a) => (
-                <AgentRow
-                  key={a.id.toString()}
-                  agent={a}
-                  roundId={roundId}
-                  viewerOwns={
-                    !!viewer &&
-                    a.owner.toLowerCase() === viewer.toLowerCase()
-                  }
-                  resolved={round.resolved}
-                />
-              ))}
-            </ul>
-          )}
-        </div>
-      </Panel>
-
-      {/* Genome anchor */}
-      <Panel>
-        <div className="p-6">
-          <div className="mb-4 text-[11px] uppercase tracking-[0.16em] text-white/55">
-            On-chain record
-          </div>
-          <dl className="grid gap-y-3 text-sm sm:grid-cols-[180px_1fr]">
-            <dt className="text-muted-foreground">Question hash</dt>
-            <dd className="break-all font-mono text-foreground">
-              {round.questionHash}
-            </dd>
-
-            <dt className="text-muted-foreground">Created</dt>
-            <dd className="text-foreground">
-              {formatTimestamp(round.commitDeadline)} (commit deadline)
-            </dd>
-
-            <dt className="text-muted-foreground">Total pool</dt>
-            <dd className="font-mono text-foreground">
-              {formatEther(round.totalPool)} OG
-            </dd>
-          </dl>
-        </div>
-      </Panel>
-
-      {viewer && round.status === "Open" && (
-        <>
-          <EnterRoundDialog
-            roundId={roundId}
-            entryFee={round.entryFee}
-            ownedAgents={ownedAgents}
-            question={question}
-            open={enterOpen}
-            ownerAddress={viewer}
-            onClose={() => setEnterOpen(false)}
-            onSuccess={() => {
-              refetch();
-              refetchAgents();
-            }}
+        <div className="p-6 sm:p-7">
+          <RoundCountdown
+            lifecycle={lifecycle}
+            outcomeBps={round.outcome}
           />
-          <CommitDialog
-            roundId={roundId}
-            entryFee={round.entryFee}
-            ownedAgents={ownedAgents}
-            open={commitOpen}
-            onClose={() => setCommitOpen(false)}
-            onSuccess={() => {
-              refetch();
-              refetchAgents();
-            }}
-          />
-        </>
-      )}
-      {viewer && revealAgent && (
-        <RevealDialog
+        </div>
+      </Panel>
+
+      <RoundPhaseTrack phase={lifecycle.phase} />
+
+      <ActionForPhase
+        lifecycle={lifecycle}
+        round={round}
+        ownedCount={ownedAgents.length}
+        onEnter={() => setEnterOpen(true)}
+      />
+
+      <CommittedAgents agents={committedViews} phase={lifecycle.phase} />
+
+      <RoundAnchors
+        round={round}
+        predictionRoundAddress={ADDRESSES.predictionRound}
+        roundMetadataAddress={ADDRESSES.roundMetadata}
+      />
+
+      {viewer && (
+        <EnterRoundDialog
           roundId={roundId}
-          agent={revealAgent}
-          open={!!revealAgent}
-          onClose={() => setRevealAgent(undefined)}
+          entryFee={round.entryFee}
+          ownedAgents={ownedAgents}
+          question={question}
+          open={enterOpen}
+          ownerAddress={viewer}
+          onClose={() => setEnterOpen(false)}
           onSuccess={() => {
             refetch();
             refetchAgents();
@@ -369,120 +166,129 @@ export function RoundDetail({ roundId }: Props) {
   );
 }
 
-function Field({
-  label,
-  value,
-  icon,
+function ActionForPhase({
+  lifecycle,
+  round,
+  ownedCount,
+  onEnter,
 }: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
+  lifecycle: ReturnType<typeof useRoundLifecycle>;
+  round: RoundData;
+  ownedCount: number;
+  onEnter: () => void;
 }) {
-  return (
-    <div className="rounded-md border border-white/10 bg-white/[0.02] p-3">
-      <div className="mb-1 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
-        {icon}
-        {label}
-      </div>
-      <div className="font-display text-2xl font-light text-foreground tabular-nums">
-        {value}
-      </div>
-    </div>
-  );
+  if (
+    lifecycle.phase === "awaiting-commits" ||
+    lifecycle.phase === "commits-closing"
+  ) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, ease: CINEMATIC_EASE }}
+      >
+        <YourTurnPanel
+          entryFee={round.entryFee}
+          urgent={lifecycle.phase === "commits-closing"}
+          ownedCount={ownedCount}
+          onEnter={onEnter}
+        />
+      </motion.div>
+    );
+  }
+  if (
+    lifecycle.phase === "awaiting-reveals" ||
+    lifecycle.phase === "reveals-closing"
+  ) {
+    return (
+      <RevealStatusPanel
+        revealed={Number(round.totalRevealed)}
+        total={Number(round.totalCommitted)}
+        urgent={lifecycle.phase === "reveals-closing"}
+      />
+    );
+  }
+  if (lifecycle.phase === "awaiting-oracle") {
+    return <OracleResearchPanel />;
+  }
+  if (lifecycle.phase === "resolved") {
+    return <ResolvedSummaryPanel yourAgents={[]} />;
+  }
+  return null;
 }
 
-function DeadlineRow({
-  label,
-  ts,
-  active,
+function buildCommittedViews({
+  round,
+  agentIds,
+  rows,
+  viewer,
+  commitmentResults,
 }: {
-  label: string;
-  ts: bigint;
-  active: boolean;
-}) {
-  return (
-    <div className="rounded-md border border-white/10 bg-white/[0.02] p-3">
-      <div className="mb-1 text-[11px] uppercase tracking-wider text-white/55">
-        {label}
-      </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-sm text-foreground">
-          {formatTimestamp(ts)}
-        </span>
-        <span
-          className={`text-xs ${
-            active ? "text-accent-life" : "text-muted-foreground"
-          }`}
-        >
-          ({formatRelative(ts)})
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function AgentRow({
-  agent,
-  roundId,
-  viewerOwns,
-  resolved,
-}: {
-  agent: AgentRow;
-  roundId: bigint;
-  viewerOwns: boolean;
-  resolved: boolean;
-}) {
-  const { data: commitmentRaw } = useCommitment(roundId, agent.id);
-  const commitment = commitmentRaw as
-    | {
-        commitHash: `0x${string}`;
-        prediction: number;
-        revealed: boolean;
-        exists: boolean;
-      }
+  round: RoundData;
+  agentIds: bigint[];
+  rows: ReturnType<typeof useAgentRows>["agents"];
+  viewer: Address | undefined;
+  commitmentResults:
+    | Array<{
+        status: "success" | "failure";
+        result?: unknown;
+        error?: unknown;
+      }>
     | undefined;
-  const display = agent.name && agent.name.length > 0 ? agent.name : `Agent #${agent.id}`;
+}): CommittedAgentView[] {
+  const rowsById = new Map(rows.map((r) => [r.id.toString(), r]));
+  return agentIds.map((id, i) => {
+    const row = rowsById.get(id.toString());
+    const commitment =
+      commitmentResults?.[i]?.status === "success"
+        ? (commitmentResults[i]!.result as {
+            commitHash: `0x${string}`;
+            prediction: number;
+            revealed: boolean;
+            exists: boolean;
+          })
+        : undefined;
 
-  return (
-    <li className="flex items-center justify-between py-3">
-      <div className="min-w-0">
-        <Link
-          href={`/agents/${agent.id.toString()}`}
-          className="flex items-center gap-2 truncate text-sm text-foreground hover:text-accent-life"
-        >
-          {display}
-          <ArrowUpRight size={11} className="text-muted-foreground" />
-        </Link>
-        <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
-          owner {shortAddress(agent.owner)}
-          {viewerOwns && (
-            <span className="ml-2 text-accent-life">you</span>
-          )}
-        </div>
-      </div>
-      <div className="flex items-center gap-3 text-right">
-        {commitment?.revealed ? (
-          <div>
-            <div className="text-[11px] uppercase tracking-wider text-white/45">
-              Revealed
-            </div>
-            <div className="font-mono text-sm text-foreground">
-              {(commitment.prediction / 100).toFixed(2)}%
-            </div>
-          </div>
-        ) : commitment?.exists ? (
-          <div>
-            <div className="text-[11px] uppercase tracking-wider text-white/45">
-              Sealed
-            </div>
-            <div className="font-mono text-[10px] text-muted-foreground">
-              {shortHash(commitment.commitHash, 6, 4)}
-            </div>
-          </div>
-        ) : (
-          <div className="text-xs text-muted-foreground">—</div>
-        )}
-      </div>
-    </li>
-  );
+    const name =
+      row && row.name && row.name.length > 0 ? row.name : `Agent #${id}`;
+    const owner = (row?.owner ?? ("0x" + "0".repeat(40))) as `0x${string}`;
+    const ownerShort =
+      owner === "0x" + "0".repeat(40)
+        ? "—"
+        : `${owner.slice(0, 6)}…${owner.slice(-4)}`;
+    const isYou =
+      viewer && owner !== "0x" + "0".repeat(40)
+        ? owner.toLowerCase() === viewer.toLowerCase()
+        : undefined;
+
+    let state: CommittedAgentView["state"] = "missing";
+    let predictionBps: number | undefined;
+    let scoreDeltaBps: number | undefined;
+
+    if (commitment?.exists) {
+      if (commitment.revealed) {
+        state = "revealed";
+        predictionBps = commitment.prediction;
+        if (round.resolved) {
+          const distance = Math.abs(predictionBps - Number(round.outcome));
+          scoreDeltaBps = 10000 - 2 * distance;
+        }
+      } else {
+        state = "sealed";
+      }
+    }
+
+    return {
+      id,
+      name,
+      generation: row?.generation ?? 0,
+      owner,
+      ownerShort,
+      isYou,
+      state,
+      commitHash: commitment?.commitHash,
+      predictionBps,
+      scoreDeltaBps,
+    };
+  });
 }

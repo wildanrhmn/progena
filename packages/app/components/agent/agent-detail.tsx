@@ -273,47 +273,7 @@ export function AgentDetail({ agentId }: Props) {
                 </div>
               )}
               {earnedSkills.length > 0 && (
-                <div>
-                  <div className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/55">
-                    <Trophy size={11} weight="bold" className="text-amber-300" />
-                    Earned in rounds
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    {earnedSkills.map((s) => (
-                      <div
-                        key={s.skillName}
-                        className="flex items-start gap-2 rounded-md border border-amber-700/40 bg-amber-900/10 px-3 py-2"
-                      >
-                        <Trophy
-                          size={11}
-                          weight="fill"
-                          className="mt-0.5 shrink-0 text-amber-300"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-amber-200">
-                            <span>{s.skillName}</span>
-                            <Link
-                              href={`/rounds/${s.earnedInRound.toString()}`}
-                              className="font-mono normal-case tracking-normal text-amber-300/70 hover:text-amber-200"
-                            >
-                              · round #{s.earnedInRound.toString()}
-                            </Link>
-                          </div>
-                          {s.reasoning && (
-                            <p className="mt-1 text-[11px] leading-snug text-amber-100/70">
-                              {s.reasoning}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    Synthesized by 0G Compute after the agent demonstrated a
-                    coherent pattern across multiple rounds. Skill markdown
-                    stored on 0G Storage; this record is anchored on AgentMetadata.
-                  </p>
-                </div>
+                <EarnedSkillsSection skills={earnedSkills} />
               )}
               {traits && traits.tools.length > 0 && (
                 <div>
@@ -645,5 +605,132 @@ function ParentTile({
         className="text-muted-foreground transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground"
       />
     </Link>
+  );
+}
+
+type EarnedSkill = ReturnType<typeof useEarnedSkills>["skills"][number];
+
+function EarnedSkillsSection({ skills }: { skills: EarnedSkill[] }) {
+  const [allOpen, setAllOpen] = useState(false);
+  const sorted = [...skills].sort((a, b) =>
+    Number(b.earnedInRound - a.earnedInRound)
+  );
+  const visible = sorted.slice(0, 3);
+  const hidden = sorted.slice(3);
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-white/65">
+          <Trophy size={12} weight="bold" className="text-amber-300" />
+          Earned in rounds · {skills.length}
+        </div>
+        {hidden.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setAllOpen(true)}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            View all {skills.length}
+            <ArrowUpRight size={11} weight="bold" />
+          </button>
+        )}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {visible.map((s) => (
+          <EarnedSkillRow key={s.skillName} skill={s} />
+        ))}
+      </div>
+      {hidden.length > 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          + {hidden.length} more — click View all to see every earned skill.
+        </p>
+      )}
+      {!skills[0]?.reasoning ? null : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Earned by demonstrating a coherent pattern across multiple rounds.
+          Skill stored on 0G Storage, anchored on AgentMetadata.
+        </p>
+      )}
+      <AllEarnedSkillsModal
+        open={allOpen}
+        skills={sorted}
+        onClose={() => setAllOpen(false)}
+      />
+    </div>
+  );
+}
+
+function EarnedSkillRow({ skill }: { skill: EarnedSkill }) {
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-amber-700/40 bg-amber-900/10 px-3 py-2">
+      <Trophy
+        size={12}
+        weight="fill"
+        className="mt-0.5 shrink-0 text-amber-300"
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 text-xs uppercase tracking-wider text-amber-200">
+          <span>{skill.skillName}</span>
+          <Link
+            href={`/rounds/${skill.earnedInRound.toString()}`}
+            className="font-mono normal-case tracking-normal text-amber-300/70 hover:text-amber-200"
+          >
+            · round #{skill.earnedInRound.toString()}
+          </Link>
+        </div>
+        {skill.reasoning && (
+          <p className="mt-1 text-xs leading-snug text-amber-100/80">
+            {skill.reasoning}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AllEarnedSkillsModal({
+  open,
+  skills,
+  onClose,
+}: {
+  open: boolean;
+  skills: EarnedSkill[];
+  onClose: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-10">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+      />
+      <div className="relative max-h-[calc(100vh-5rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-zinc-800/80 bg-zinc-950 p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-[0.18em] text-amber-300/80">
+              Every earned skill
+            </div>
+            <h3 className="font-display text-xl tracking-tight text-foreground">
+              {skills.length} skills · earned in rounds
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Close
+          </button>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {skills.map((s) => (
+            <EarnedSkillRow key={s.skillName} skill={s} />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

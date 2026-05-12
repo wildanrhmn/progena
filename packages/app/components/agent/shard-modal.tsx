@@ -18,6 +18,7 @@ import {
 import { useShard, type MemoryShard } from "@/hooks/use-shard";
 import { ADDRESSES, EXPLORER_URL } from "@/lib/chain";
 import { formatRelative, formatTimestamp, shortHash } from "@/lib/format";
+import { ExpandableList, ExpandableText } from "@/components/ui/expandable";
 
 type Props = {
   open: boolean;
@@ -205,57 +206,25 @@ export function ShardModal({ open, rootHash, shardIndex, onClose, previewShard }
                   </div>
 
                   {shard.openclawReasoning && (
-                    <div className="space-y-2 rounded-md border border-accent-lineage/30 bg-accent-lineage/[0.04] p-3">
-                      <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-accent-lineage/90">
-                        <span>OpenClaw pass 1 · workspace-materialized reasoning</span>
-                        <span className="font-mono normal-case tracking-normal text-accent-lineage/70">
-                          openclaw agent
-                        </span>
-                      </div>
-                      <p className="whitespace-pre-wrap text-[12px] leading-relaxed text-foreground/85">
-                        {shard.openclawReasoning.length > 800
-                          ? `${shard.openclawReasoning.slice(0, 800)}…`
-                          : shard.openclawReasoning}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Genome materialized into an OpenClaw workspace; agent reasoned in
-                        agent-mode with SOUL.md as personality, before tool execution.
-                      </p>
-                    </div>
+                    <ExpandableText
+                      tone="lineage"
+                      label="How the agent thought about it"
+                      text={shard.openclawReasoning}
+                      previewLines={3}
+                    />
                   )}
 
                   {shard.toolCalls && shard.toolCalls.length > 0 && (
-                    <div className="space-y-2 rounded-md border border-accent-life/30 bg-accent-life/[0.04] p-3">
-                      <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-accent-life/90">
-                        <span>Pass 2 · tool calls (function-calling via 0G Compute)</span>
-                        <span className="font-mono normal-case tracking-normal text-accent-life/70">
-                          {shard.toolCalls.length} call{shard.toolCalls.length === 1 ? "" : "s"}
-                          {shard.inferenceIterations
-                            ? ` · ${shard.inferenceIterations} turns`
-                            : ""}
-                        </span>
-                      </div>
-                      <ol className="space-y-2 text-xs">
-                        {shard.toolCalls.map((c, i) => (
-                          <li key={i} className="rounded border border-white/5 bg-zinc-950/60 p-2">
-                            <div className="flex items-center justify-between font-mono text-[10px] text-accent-life">
-                              <span>
-                                {c.ok ? "✓" : "✗"} {c.tool}
-                              </span>
-                              <span className="text-muted-foreground">{c.durationMs}ms</span>
-                            </div>
-                            {c.args && Object.keys(c.args).length > 0 && (
-                              <div className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
-                                {JSON.stringify(c.args)}
-                              </div>
-                            )}
-                            <div className="mt-1.5 line-clamp-3 whitespace-pre-wrap text-[11px] text-foreground/85">
-                              {c.summary}
-                            </div>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
+                    <ExpandableList
+                      tone="life"
+                      heading="What the agent checked"
+                      items={shard.toolCalls.map((c, i) => ({
+                        key: String(i),
+                        label: friendlyTool(c.tool),
+                        body: c.summary,
+                      }))}
+                      initial={2}
+                    />
                   )}
 
                   <div className="space-y-2 border-t border-zinc-800/80 pt-4">
@@ -334,3 +303,18 @@ function KV({ label, children }: { label: string; children: React.ReactNode }) {
     </div>
   );
 }
+
+const FRIENDLY_TOOL: Record<string, string> = {
+  fetch_token_price: "Price feed",
+  web_search: "Web search",
+  fetch_market_state: "Market state",
+  read_on_chain: "On-chain data",
+};
+
+function friendlyTool(name: string): string {
+  return (
+    FRIENDLY_TOOL[name] ??
+    name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+

@@ -7,16 +7,17 @@ import { formatEther, type Address } from "viem";
 import { useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import {
   ArrowRight,
-  Brain,
+  ArrowUpRight,
   CircleNotch,
   Lightning,
   Sparkle,
   Target,
-  Wrench,
   X,
 } from "@phosphor-icons/react";
 import { predictionRoundContract } from "@/lib/contracts";
 import { displayNameOf, type AgentRow } from "@/hooks/use-agents";
+import { ExpandableList, ExpandableText } from "@/components/ui/expandable";
+import { EXPLORER_URL } from "@/lib/chain";
 
 type Props = {
   roundId: bigint;
@@ -39,6 +40,22 @@ type Phase =
   | "confirming"
   | "done"
   | "error";
+
+const FRIENDLY_TOOL_NAMES: Record<string, string> = {
+  fetch_token_price: "Price feed",
+  web_search: "Web search",
+  fetch_market_state: "Market state",
+  read_on_chain: "On-chain data",
+};
+
+function friendlyToolName(name: string): string {
+  return (
+    FRIENDLY_TOOL_NAMES[name] ??
+    name
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
 
 interface PreparedCommit {
   agentId: string;
@@ -215,15 +232,15 @@ export function EnterRoundDialog({
               <X size={16} weight="bold" />
             </button>
 
-            <div className="mb-1 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-accent-life/80">
-              <Lightning size={11} weight="fill" />
+            <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-accent-life/80">
+              <Lightning size={12} weight="fill" />
               Round #{roundId.toString()} · enter
             </div>
             <h3 className="text-xl font-semibold tracking-tight text-zinc-100">
               Send an agent into this round
             </h3>
             {question && (
-              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+              <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">
                 {question}
               </p>
             )}
@@ -284,7 +301,7 @@ function PickAgentStep({
   return (
     <div className="mt-5 space-y-4">
       <div>
-        <label className="mb-2 block text-[11px] uppercase tracking-wider text-zinc-500">
+        <label className="mb-2 block text-xs uppercase tracking-wider text-zinc-400">
           Pick one of your agents
         </label>
         {ownedAgents.length === 0 ? (
@@ -309,7 +326,7 @@ function PickAgentStep({
                 >
                   <div>
                     <div className="text-sm text-foreground">{displayNameOf(a)}</div>
-                    <div className="font-mono text-[10px] text-muted-foreground">
+                    <div className="font-mono text-xs text-muted-foreground">
                       #{a.id.toString()} · Gen {a.generation}
                     </div>
                   </div>
@@ -329,17 +346,17 @@ function PickAgentStep({
 
       {preparing && (
         <div className="space-y-2 rounded-md border border-accent-lineage/30 bg-accent-lineage/[0.05] p-3">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-accent-lineage">
-            <CircleNotch size={11} className="animate-spin" />
-            Running 2-pass inference on 0G Compute
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-accent-lineage">
+            <CircleNotch size={12} className="animate-spin" />
+            Your agent is making its prediction
           </div>
-          <ul className="space-y-1 text-xs text-foreground/80">
-            <li>· Materializing genome into OpenClaw workspace</li>
-            <li>· Pass 1: agent reasons in agent-mode (SOUL.md, skills, memories)</li>
-            <li>· Pass 2: function-calling inference fires real tools (Tavily, on-chain reads)</li>
-            <li>· Returning sealed commit hash for your signature</li>
+          <ul className="space-y-1 text-sm text-foreground/85">
+            <li>· Waking up your agent</li>
+            <li>· Reasoning from its personality and past lessons</li>
+            <li>· Checking live data — prices, news, on-chain state</li>
+            <li>· Sealing the answer in a hash for you to sign</li>
           </ul>
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             This usually takes 30–60 seconds.
           </p>
         </div>
@@ -365,71 +382,41 @@ function PreviewStep({
   return (
     <div className="mt-5 space-y-4">
       <div className="rounded-md border border-accent-life/30 bg-accent-life/[0.04] p-4">
-        <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-accent-life/90">
-          <Target size={11} weight="bold" />
+        <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-accent-life/90">
+          <Target size={12} weight="bold" />
           Agent's prediction
         </div>
-        <div className="mt-1 flex items-baseline gap-3">
+        <div className="mt-1.5 flex items-baseline gap-3">
           <span className="font-display text-4xl font-light text-foreground tabular-nums">
             {predictionPct.toFixed(2)}%
           </span>
-          <span className="font-mono text-[11px] text-muted-foreground">
+          <span className="font-mono text-xs text-muted-foreground">
             {prepared.prediction} bps
           </span>
         </div>
       </div>
 
       {prepared.openclawReasoning && (
-        <div className="space-y-2 rounded-md border border-accent-lineage/30 bg-accent-lineage/[0.04] p-3">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-accent-lineage/90">
-            <span className="flex items-center gap-1.5">
-              <Brain size={11} weight="bold" />
-              Pass 1 · OpenClaw reasoning
-            </span>
-            <span className="font-mono normal-case tracking-normal text-accent-lineage/70">
-              openclaw agent
-            </span>
-          </div>
-          <p className="whitespace-pre-wrap text-[12px] leading-relaxed text-foreground/85">
-            {prepared.openclawReasoning.length > 600
-              ? `${prepared.openclawReasoning.slice(0, 600)}…`
-              : prepared.openclawReasoning}
-          </p>
-        </div>
+        <ExpandableText
+          tone="lineage"
+          label="How your agent thought about it"
+          text={prepared.openclawReasoning}
+          previewLines={3}
+          footnote="The full reasoning lands in the memory shard after the round resolves."
+        />
       )}
 
-      {toolCount > 0 && (
-        <div className="space-y-2 rounded-md border border-accent-life/30 bg-accent-life/[0.04] p-3">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-accent-life/90">
-            <span className="flex items-center gap-1.5">
-              <Wrench size={11} weight="bold" />
-              Pass 2 · {toolCount} tool call{toolCount === 1 ? "" : "s"}
-            </span>
-            {prepared.inferenceIterations && (
-              <span className="font-mono normal-case tracking-normal text-accent-life/70">
-                {prepared.inferenceIterations} turns
-              </span>
-            )}
-          </div>
-          <ol className="space-y-1.5 text-xs">
-            {prepared.toolCalls?.slice(0, 3).map((c, i) => (
-              <li
-                key={i}
-                className="rounded border border-white/5 bg-zinc-950/60 p-2"
-              >
-                <div className="flex items-center justify-between font-mono text-[10px] text-accent-life">
-                  <span>
-                    {c.ok ? "✓" : "✗"} {c.tool}
-                  </span>
-                  <span className="text-muted-foreground">{c.durationMs}ms</span>
-                </div>
-                <div className="mt-1 line-clamp-2 text-[11px] text-foreground/85">
-                  {c.summary}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
+      {toolCount > 0 && prepared.toolCalls && (
+        <ExpandableList
+          tone="life"
+          heading="What your agent checked"
+          items={prepared.toolCalls.map((c, i) => ({
+            key: String(i),
+            label: friendlyToolName(c.tool),
+            body: c.summary,
+          }))}
+          initial={2}
+        />
       )}
 
       {prepared.reasoningPreview && (
@@ -444,15 +431,15 @@ function PreviewStep({
       )}
 
       <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-3">
-        <div className="mb-1 text-[11px] uppercase tracking-wider text-white/55">
+        <div className="mb-1.5 text-xs uppercase tracking-wider text-white/65">
           Sealed commit hash
         </div>
-        <p className="break-all font-mono text-[10px] text-foreground/80">
+        <p className="break-all font-mono text-xs text-foreground/80">
           {prepared.commitHash}
         </p>
-        <p className="mt-1 text-[10px] text-muted-foreground">
-          Nonce is held by the daemon's commit-store and will be used to reveal
-          after the commit deadline.
+        <p className="mt-2 text-sm text-muted-foreground">
+          Your prediction is hidden inside this hash. Progena will reveal it
+          automatically after entries close, so you don't have to come back.
         </p>
       </div>
     </div>
@@ -480,19 +467,28 @@ function SubmitStatusStep({
           <div className="text-sm text-foreground">
             {phase === "signing" && "Confirm in your wallet…"}
             {phase === "confirming" && "Sealing on 0G mainnet…"}
-            {phase === "done" && "Sealed. Daemon will reveal after the deadline."}
+            {phase === "done" && "Sealed. We'll reveal your prediction automatically after entries close."}
           </div>
-          <div className="mt-0.5 text-[11px] text-muted-foreground">
+          <div className="mt-1 text-xs text-muted-foreground">
             Committed prediction: {predictionPct.toFixed(2)}%
           </div>
         </div>
       </div>
       {txHash && (
         <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-3">
-          <div className="mb-1 text-[11px] uppercase tracking-wider text-white/55">
-            Tx hash
+          <div className="mb-1.5 flex items-center justify-between text-xs uppercase tracking-wider text-white/65">
+            <span>Transaction</span>
+            <a
+              href={`${EXPLORER_URL}/tx/${txHash}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 normal-case tracking-normal text-accent-life hover:text-accent-life/80"
+            >
+              View on explorer
+              <ArrowUpRight size={11} weight="bold" />
+            </a>
           </div>
-          <p className="break-all font-mono text-[10px] text-foreground/80">
+          <p className="break-all font-mono text-xs text-foreground/80">
             {txHash}
           </p>
         </div>
@@ -521,7 +517,7 @@ function DialogFooter({
   const feeLabel = `${formatEther(entryFee)} OG`;
   return (
     <div className="mt-6 flex items-center justify-between border-t border-zinc-800/80 pt-5">
-      <div className="text-[11px] uppercase tracking-wider text-zinc-500">
+      <div className="text-xs uppercase tracking-wider text-zinc-400">
         Entry fee {feeLabel}
       </div>
       <div className="flex items-center gap-2">
@@ -536,7 +532,7 @@ function DialogFooter({
             {phase === "preparing" && (
               <CircleNotch size={12} className="animate-spin" />
             )}
-            {phase === "preparing" ? "Running inference…" : "Run inference"}
+            {phase === "preparing" ? "Thinking…" : "Make a prediction"}
             {phase !== "preparing" && <ArrowRight size={12} weight="bold" />}
           </button>
         )}

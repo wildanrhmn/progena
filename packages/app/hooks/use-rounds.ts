@@ -53,7 +53,7 @@ export function useRound(id: bigint | undefined) {
         ]
       : [],
     allowFailure: true,
-    query: { enabled, staleTime: 10_000 },
+    query: { enabled, staleTime: 4_000, refetchInterval: 5_000 },
   });
 
   const round = useMemo<RoundData | undefined>(() => {
@@ -145,7 +145,11 @@ export function useRoundAgents(roundId: bigint | undefined) {
     ...predictionRoundContract,
     functionName: "agentsOf",
     args: roundId !== undefined ? [roundId] : undefined,
-    query: { enabled: roundId !== undefined, staleTime: 10_000 },
+    query: {
+      enabled: roundId !== undefined,
+      staleTime: 4_000,
+      refetchInterval: 5_000,
+    },
   });
 }
 
