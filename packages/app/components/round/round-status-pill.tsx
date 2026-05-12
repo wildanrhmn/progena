@@ -10,7 +10,7 @@ const STYLES: Record<RoundStatus, { label: string; tone: string }> = {
     tone: "border-accent-life/40 bg-accent-life/10 text-accent-life",
   },
   RevealPhase: {
-    label: "Revealing",
+    label: "Resolving",
     tone: "border-amber-700/50 bg-amber-900/20 text-amber-300",
   },
   Closed: {

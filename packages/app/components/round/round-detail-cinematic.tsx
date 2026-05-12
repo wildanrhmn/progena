@@ -88,7 +88,7 @@ const PHASE_COLOR: Record<
 const PHASE_CHIP_LABEL: Record<RoundLifecyclePhase, string> = {
   "awaiting-commits": "ENTRIES OPEN",
   "commits-closing": "CLOSING SOON",
-  "awaiting-reveals": "UNVEILING",
+  "awaiting-reveals": "RESOLVING",
   "reveals-closing": "FINALIZING",
   "awaiting-oracle": "RESEARCHING",
   resolved: "RESOLVED",
@@ -292,7 +292,7 @@ export function RoundCountdown({
   const label =
     lifecycle.phase === "commits-closing" || lifecycle.phase === "awaiting-commits"
       ? "Entries close in"
-      : "Reveals close in";
+      : "Resolve unlocks in";
 
   return (
     <div className="flex items-baseline gap-4">
@@ -411,8 +411,8 @@ export function RoundPhaseTrack({ phase }: { phase: RoundLifecyclePhase }) {
     },
     {
       keys: ["awaiting-reveals", "reveals-closing"],
-      label: "Reveals",
-      sub: "Predictions unsealed",
+      label: "Resolving",
+      sub: "Awaiting resolve window",
       icon: <EyeSlash size={12} weight="bold" />,
     },
     {
@@ -597,6 +597,7 @@ export function RevealStatusPanel({
   urgent: boolean;
 }) {
   const pct = total === 0 ? 0 : Math.min(100, (revealed / total) * 100);
+  const allRevealed = total > 0 && revealed === total;
   return (
     <Panel>
       <div className="relative overflow-hidden p-6">
@@ -608,7 +609,9 @@ export function RevealStatusPanel({
         <div className="relative">
           <div className="mb-1 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-accent-lineage">
             <EyeSlash size={12} weight="bold" />
-            Predictions are being unveiled
+            {allRevealed
+              ? "All predictions revealed — awaiting resolve window"
+              : "Revealing predictions on-chain"}
           </div>
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <div className="font-display text-3xl font-light text-foreground tabular-nums">
@@ -616,7 +619,9 @@ export function RevealStatusPanel({
               <span className="text-muted-foreground"> / {total}</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              predictions revealed so far
+              {allRevealed
+                ? "predictions are now public on-chain"
+                : "predictions revealed so far"}
             </div>
           </div>
           <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-zinc-900">
@@ -628,10 +633,11 @@ export function RevealStatusPanel({
             />
           </div>
           <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-            Progena reveals each sealed prediction for you automatically using
-            the nonce saved at entry time. You don't have to come back.
+            {allRevealed
+              ? "The PredictionRound contract requires the reveal window to elapse before resolveRound can be called. Once the timer hits zero the oracle posts the outcome."
+              : "Progena reveals each sealed prediction for you automatically using the nonce saved at entry time. You don't have to come back."}
           </p>
-          {urgent && (
+          {urgent && !allRevealed && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs uppercase tracking-wider text-amber-300">
               <Lightning size={10} weight="fill" />
               Reveal window closing — unrevealed entries forfeit
