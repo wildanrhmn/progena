@@ -69,14 +69,6 @@ export interface ResolveRoundResult {
   attestation: OracleAttestation;
 }
 
-/**
- * Run the research-backed oracle for a round and submit resolveRound on-chain.
- * Returns the parsed outcome, the model's reasoning trail, and the tx hash.
- *
- * Idempotent in spirit: if the round is already resolved on-chain, the
- * resolveRound tx will revert with RoundAlreadyResolved and this throws.
- * Callers should pre-check round.resolved.
- */
 export async function resolveRound(
   input: ResolveRoundInput,
   ctx: ResolveRoundContext
@@ -146,10 +138,6 @@ export async function resolveRound(
   };
 }
 
-/**
- * Convenience: build the default tool registry + agentic inference client + a
- * resolveRound-ready context. Used by both the CLI script and the orchestrator.
- */
 export interface BuildResolveContextInput {
   publicClient: PublicClient;
   walletClient: WalletClient;

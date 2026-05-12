@@ -240,7 +240,7 @@ async function main(): Promise<void> {
           });
         }
       } catch {
-        // skip
+        /* */
       }
     }
     console.log(`  found ${rounds.length} legacy round entries`);

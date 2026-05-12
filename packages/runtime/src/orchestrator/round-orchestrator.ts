@@ -113,8 +113,6 @@ export class RoundOrchestrator {
     log?.info?.("recovering unresolved rounds on boot");
     await this.recoverPendingRounds();
 
-    // Periodic safety net: re-scan unresolved rounds to catch anything we missed
-    // (e.g., daemon was offline when an event fired).
     this.recoveryTimer = setInterval(() => {
       this.recoverPendingRounds().catch((err) => {
         log?.warn?.("periodic recovery failed", { error: err instanceof Error ? err.message : String(err) });
@@ -130,15 +128,12 @@ export class RoundOrchestrator {
     this.jobs.clear();
   }
 
-  /** Called from the round-watcher when a RoundCreated event arrives. */
   async onRoundCreated(event: RoundCreatedEvent): Promise<void> {
     await this.ingestRound(event.roundId, {
       commitDeadline: Number(event.commitDeadline),
       revealDeadline: Number(event.revealDeadline),
     });
   }
-
-  // ---------- internal ----------
 
   private async recoverPendingRounds(): Promise<void> {
     const log = this.opts.logger?.child?.({ component: "round-orchestrator" });
@@ -156,8 +151,6 @@ export class RoundOrchestrator {
       if (this.jobs.has(key)) continue;
       try {
         const data = await this.predictionContract.read.roundOf([id]);
-        // Resolved rounds may still need memorize+promote (if our agents
-        // participated and we haven't written shards yet).
         if (data.resolved) {
           await this.handleResolvedRecovery(id, data);
           continue;
@@ -228,8 +221,6 @@ export class RoundOrchestrator {
     const delay = Math.max(0, fireAt - nowMs);
     log?.info?.("reveal scheduled", { in: `${Math.round(delay / 1000)}s` });
     const timer = setTimeout(async () => {
-      // Always wait for commit phase to settle before revealing — prevents
-      // the race where reveal runs against a partial participant list.
       if (job.commitPhasePromise) {
         await job.commitPhasePromise.catch(() => undefined);
       }
@@ -250,7 +241,6 @@ export class RoundOrchestrator {
     const delay = Math.max(0, fireAt - nowMs);
     log?.info?.("resolve scheduled", { in: `${Math.round(delay / 1000)}s` });
     const timer = setTimeout(async () => {
-      // Wait for reveal phase to settle before resolving.
       if (job.revealPhasePromise) {
         await job.revealPhasePromise.catch(() => undefined);
       }
@@ -268,8 +258,6 @@ export class RoundOrchestrator {
     });
     job.phase = "committing";
 
-    // Question may not be on RoundMetadata yet if the publish tx hasn't
-    // confirmed (race against the createRound tx). Retry for up to 60s.
     let lookup = await this.opts.questionLookup(job.roundId);
     if (!lookup) {
       log?.info?.("no question text yet, polling RoundMetadata…");
@@ -291,10 +279,6 @@ export class RoundOrchestrator {
     const eligibleAgents = await this.discoverEligibleAgents();
     log?.info?.("commit phase starting", { eligible: eligibleAgents.length });
 
-    // Per-agent commit takes ~25-55s (genome download + agentic inference +
-    // tx submit; receipt-poll timeouts are swallowed so they don't add to the
-    // measured time). 45s budget lets one more agent squeeze in when the
-    // deadline is close, without risking too many late reverts.
     const PER_COMMIT_BUDGET_S = 45;
 
     for (const agentId of eligibleAgents) {
@@ -307,7 +291,6 @@ export class RoundOrchestrator {
         break;
       }
       try {
-        // Skip if already committed (e.g., daemon resumed mid-round)
         const existing = await this.predictionContract.read.commitmentOf([job.roundId, agentId]);
         if (existing.exists) {
           log?.info?.("skipping (already committed)", { agentId: String(agentId) });
@@ -338,8 +321,6 @@ export class RoundOrchestrator {
     job.phase = "revealing";
 
     if (job.participants.length === 0) {
-      // We may have missed the commit phase entirely (boot recovery scenario).
-      // Reconstruct participants from commit-store.
       const persisted = await this.opts.commitStore.listForRound(job.roundId);
       job.participants = persisted.map((c) => BigInt(c.agentId));
       log?.info?.("reconstructed participants from commit-store", {
@@ -380,8 +361,6 @@ export class RoundOrchestrator {
     });
     job.phase = "resolving";
 
-    // Resolve must have at least one revealed commit on-chain to be useful,
-    // but the contract still allows resolving with zero reveals.
     const lookup = await this.opts.questionLookup(job.roundId);
     if (!lookup) {
       log?.warn?.("no question text for resolve; cannot run oracle");
@@ -489,8 +468,6 @@ export class RoundOrchestrator {
     roundId: bigint,
     data: { outcome: number }
   ): Promise<void> {
-    // Already-resolved rounds at boot — the orchestrator might have crashed
-    // between resolve and memorize. Run memorize+promote idempotently.
     const log = this.opts.logger?.child?.({
       component: "round-orchestrator",
       roundId: String(roundId),
@@ -500,9 +477,6 @@ export class RoundOrchestrator {
     const ids = persisted.map((c) => BigInt(c.agentId));
     if (ids.length === 0) return;
 
-    // Has at least one of our agents already been memorized for this round?
-    // Cheap proxy: check if the most-recent shard's roundId matches.
-    // Skip the recovery if we've already done this round.
     try {
       const sample = ids[0]!;
       const total = (await this.opts.publicClient.readContract({
@@ -519,11 +493,9 @@ export class RoundOrchestrator {
         functionName: "shardCountOf",
         args: [sample],
       })) as bigint;
-      // Rough heuristic: if shard count >= number of resolved rounds the agent
-      // has played, we're caught up. Skip detailed recovery for now.
       if (total > 0n) return;
     } catch {
-      // proceed
+      /* */
     }
 
     const lookup = await this.opts.questionLookup(roundId);
@@ -593,13 +565,9 @@ export class RoundOrchestrator {
         if (owner.toLowerCase() !== this.opts.account.address.toLowerCase()) continue;
         const finalized = (await this.genomeContract.read.isFinalized([id])) as boolean;
         if (!finalized) continue;
-        // Phantom check: try to download the genome. We don't actually need the
-        // bytes here — round-runner will do it during inference. Defer the
-        // failure to that path; if download throws, the per-agent try/catch
-        // there handles it gracefully.
         eligible.push(id);
       } catch {
-        // skip
+        /* */
       }
     }
     return eligible;

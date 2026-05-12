@@ -19,6 +19,7 @@ export interface MemoryShard {
   inferenceModel?: string;
   inferenceIterations?: number;
   reasoningPreview?: string;
+  openclawReasoning?: string;
 }
 
 export interface MemoryChain {
@@ -46,6 +47,7 @@ export interface RecordOutcomeInput {
   inferenceModel?: string;
   inferenceIterations?: number;
   reasoningPreview?: string;
+  openclawReasoning?: string;
 }
 
 export interface RecordOutcomeResult {
@@ -81,6 +83,7 @@ export class MemoryAccumulator {
       inferenceModel: input.inferenceModel,
       inferenceIterations: input.inferenceIterations,
       reasoningPreview: input.reasoningPreview,
+      openclawReasoning: input.openclawReasoning,
     };
 
     const bytes = serializeShard(shard);

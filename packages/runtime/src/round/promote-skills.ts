@@ -77,12 +77,6 @@ export interface PromoteSkillsResult {
   failed: Array<{ agentId: bigint; error: string }>;
 }
 
-/**
- * Memory→capability promotion. For each agent, ask 0G Compute whether the
- * recent shards demonstrate a coherent, repeatable behavior worth promoting
- * to an "earned" skill. If yes: synthesize SKILL.md, upload to 0G Storage,
- * record on AgentMetadata. Conservative by design.
- */
 export async function promoteSkills(
   input: PromoteSkillsInput,
   ctx: PromoteSkillsContext
@@ -132,9 +126,13 @@ export async function promoteSkills(
             `  lesson: "${shard.lesson}"`,
           ];
           if (toolPattern) lines.push(`  tools_used: ${toolPattern}`);
+          if (shard.openclawReasoning) {
+            const oc = shard.openclawReasoning.replace(/\s+/g, " ").slice(0, 220);
+            lines.push(`  openclaw_pass1: "${oc}"`);
+          }
           if (shard.reasoningPreview) {
             const preview = shard.reasoningPreview.replace(/\s+/g, " ").slice(0, 200);
-            lines.push(`  reasoning: "${preview}"`);
+            lines.push(`  pass2_reasoning: "${preview}"`);
           }
           shardSummaries.push(lines.join("\n"));
         } catch (err) {

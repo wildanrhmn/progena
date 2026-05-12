@@ -14,15 +14,10 @@ export type RoundLifecyclePhase =
 
 export interface RoundLifecycle {
   phase: RoundLifecyclePhase;
-  /** seconds until the next phase boundary (negative if past) */
   countdownSeconds: number;
-  /** Pretty mm:ss formatting, never negative */
   countdownLabel: string;
-  /** Whether the daemon is the actor "now" (true while a phase tx may fire). */
   daemonActive: boolean;
-  /** Short headline string for the status pill */
   headline: string;
-  /** Longer line of explanation */
   detail: string;
 }
 
@@ -116,7 +111,6 @@ export function useRoundLifecycle(round: RoundData | undefined): RoundLifecycle 
       };
     }
 
-    // Past reveal deadline, not resolved yet
     const overrun = now - revealDeadline;
     return {
       phase: "awaiting-oracle",

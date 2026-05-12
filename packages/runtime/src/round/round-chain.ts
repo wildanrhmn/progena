@@ -66,8 +66,6 @@ export function createRoundChain(opts: CreateRoundChainOptions): RoundChain {
         [roundId, agentId, commitHash],
         { ...tx, value: value ?? 0n }
       )) as Hex;
-      // 0G mainnet receipt-poll is flaky; the tx itself lands. Swallow timeouts
-      // so callers can persist nonce + commit hash even when confirmation lags.
       await opts.publicClient
         .waitForTransactionReceipt({ hash: txHash, timeout: 600_000, retryCount: 120 })
         .catch(() => undefined);

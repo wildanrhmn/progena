@@ -17,6 +17,7 @@ export interface StoredCommitment {
   inferenceIterations?: number;
   toolCalls?: ToolCallRecord[];
   reasoningPreview?: string;
+  openclawReasoning?: string;
 }
 
 export interface CommitStore {

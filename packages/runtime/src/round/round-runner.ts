@@ -17,11 +17,6 @@ export interface RoundRunnerOptions {
   storage: GenomeStorage;
   inference: InferenceClient;
   agenticInference?: AgenticInferenceClient;
-  /**
-   * If true, route commits through OpenClawAgent (workspace-materialized
-   * agent mode) when the agent has no resolvable tools. When the agent has
-   * tools, we still use the function-calling path so tools actually execute.
-   */
   useOpenClawAgent?: boolean;
   openclawBin?: string;
   commitStore: CommitStore;
@@ -39,6 +34,7 @@ export interface CommitForAgentResult {
   toolCalls?: ToolCallRecord[];
   inferenceModel?: string;
   inferenceIterations?: number;
+  openclawReasoning?: string;
 }
 
 export interface RevealForAgentResult {
@@ -73,18 +69,64 @@ export class RoundRunner {
     let toolCalls: ToolCallRecord[] | undefined;
     let inferenceModel: string | undefined;
     let inferenceIterations: number | undefined;
+    let openclawReasoning: string | undefined;
 
     const allowedTools = this.opts.agenticInference
       ? resolveToolList(context.toolList)
       : [];
 
+    if (this.opts.useOpenClawAgent) {
+      log?.info("OpenClaw pass 1: workspace-materialized reasoning", {
+        skills: context.skillNames,
+      });
+      const openclawAgent = new OpenClawAgent({
+        genome,
+        openclawBin: this.opts.openclawBin,
+        thinking: "high",
+        logger: log,
+      });
+      try {
+        const passOnePrompt = [
+          `Question: ${question}`,
+          ``,
+          `Think through this question from your unique perspective, informed by your SOUL.md, your skills, and any past lessons. Output ONLY your reasoning paragraph(s). DO NOT output a PREDICTION line yet — the next pass will gather external evidence via your tools and produce the final prediction.`,
+        ].join("\n");
+        const result = await openclawAgent.ask(passOnePrompt);
+        const reasoning = result.text.trim();
+        if (reasoning.length > 0) {
+          openclawReasoning = reasoning;
+          log?.info("OpenClaw pass 1 captured", { chars: reasoning.length });
+        } else {
+          log?.warn("OpenClaw pass 1 returned empty");
+        }
+      } catch (err) {
+        log?.warn("OpenClaw pass 1 failed, continuing without it", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      } finally {
+        await openclawAgent.dispose();
+      }
+    }
+
+    const augmentedSystemPrompt = openclawReasoning
+      ? [
+          context.systemPrompt,
+          ``,
+          `# Your prior reasoning from the OpenClaw agent runtime`,
+          openclawReasoning,
+          ``,
+          `Use the prior reasoning above as your starting position. Verify or revise it using the tools available to you.`,
+        ].join("\n")
+      : context.systemPrompt;
+
     if (this.opts.agenticInference && allowedTools.length > 0) {
-      log?.info("running agentic inference (function-calling tools)", {
+      log?.info("PASS 2: agentic inference with function-calling tools", {
         skills: context.skillNames,
         tools: allowedTools,
+        usingOpenClawReasoning: !!openclawReasoning,
       });
       const agenticResult = await this.opts.agenticInference.run({
-        systemPrompt: context.systemPrompt,
+        systemPrompt: augmentedSystemPrompt,
         userPrompt,
         toolNames: allowedTools,
         temperature: 0.4,
@@ -95,40 +137,24 @@ export class RoundRunner {
       rawText = agenticResult.finalText;
       prediction = extractPrediction(rawText);
       toolCalls = agenticResult.toolCalls;
-      inferenceModel = agenticResult.model;
+      inferenceModel = openclawReasoning
+        ? `openclaw-agent + ${agenticResult.model}`
+        : agenticResult.model;
       inferenceIterations = agenticResult.iterations;
-    } else if (this.opts.useOpenClawAgent) {
-      // Real OpenClaw orchestration: materialize the genome workspace +
-      // spawn `openclaw agent --message <q>`. The OpenClaw runtime loads
-      // SOUL.md as personality and exposes skills/* via its workspace.
-      log?.info("running OpenClaw agent (workspace-materialized)", {
-        skills: context.skillNames,
-      });
-      const openclawAgent = new OpenClawAgent({
-        genome,
-        openclawBin: this.opts.openclawBin,
-        thinking: "high",
-        logger: log,
-      });
-      try {
-        const result = await openclawAgent.ask(`${userPrompt}\n\n(Round ${roundId} as OpenClaw agent #${agentId})`);
-        rawText = result.text;
-        prediction = extractPrediction(rawText);
-        inferenceModel = "openclaw/agent-mode";
-      } finally {
-        await openclawAgent.dispose();
-      }
     } else {
-      log?.info("running single-prompt inference (no tools available)", {
+      log?.info("PASS 2: single-prompt finalize", {
         skills: context.skillNames,
+        usingOpenClawReasoning: !!openclawReasoning,
       });
       const { prediction: pred, raw } = await inferAndExtract(this.opts.inference, {
-        systemPrompt: context.systemPrompt,
+        systemPrompt: augmentedSystemPrompt,
         userPrompt,
       });
       prediction = pred;
       rawText = raw.text;
-      inferenceModel = raw.model;
+      inferenceModel = openclawReasoning
+        ? `openclaw-agent + ${raw.model ?? "single-prompt"}`
+        : raw.model;
     }
 
     const nonce = generateNonce();
@@ -138,8 +164,6 @@ export class RoundRunner {
     const reasoningPreview =
       rawText.length > 320 ? `${rawText.slice(0, 320)}…` : rawText;
 
-    // Persist nonce + commit hash FIRST so we can always reveal even if the
-    // tx submission or receipt-poll crashes downstream.
     const stored: StoredCommitment = {
       roundId: String(roundId),
       agentId: String(agentId),
@@ -152,6 +176,7 @@ export class RoundRunner {
       inferenceIterations,
       toolCalls,
       reasoningPreview,
+      openclawReasoning,
     };
     await this.opts.commitStore.save(stored);
 
@@ -179,6 +204,7 @@ export class RoundRunner {
       nonce,
       rawText,
       toolCalls,
+      openclawReasoning,
       inferenceModel,
       inferenceIterations,
     };

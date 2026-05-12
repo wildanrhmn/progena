@@ -49,14 +49,6 @@ export interface MemorizeRoundResult {
   failed: Array<{ agentId: bigint; error: string }>;
 }
 
-/**
- * Generate + anchor a memory shard for each agent that revealed in a round.
- * Each shard captures the agent's prediction, the actual outcome, the score
- * delta, an LLM-authored lesson, and the tool-call trace persisted at commit
- * time. Per-agent try/catch so one failure doesn't abort the rest.
- *
- * Pre-condition: the round must already be resolved on-chain.
- */
 export async function memorizeRound(
   input: MemorizeRoundInput,
   ctx: MemorizeRoundContext
@@ -122,6 +114,7 @@ export async function memorizeRound(
         inferenceModel: stored?.inferenceModel,
         inferenceIterations: stored?.inferenceIterations,
         reasoningPreview: stored?.reasoningPreview,
+        openclawReasoning: stored?.openclawReasoning,
       });
 
       shards.push({

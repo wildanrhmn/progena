@@ -24,6 +24,7 @@ export type MemoryShard = {
   inferenceModel?: string;
   inferenceIterations?: number;
   reasoningPreview?: string;
+  openclawReasoning?: string;
 };
 
 async function fetchShard(rootHash: string): Promise<MemoryShard> {

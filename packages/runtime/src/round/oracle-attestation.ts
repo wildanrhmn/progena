@@ -30,7 +30,7 @@ export async function appendOracleAttestation(
     const parsed = JSON.parse(raw) as Partial<AttestationFile>;
     if (Array.isArray(parsed.attestations)) file.attestations = parsed.attestations;
   } catch {
-    // new file
+    /* */
   }
   file.attestations.push(entry);
   await writeFile(path, JSON.stringify(file, null, 2) + "\n", "utf-8");

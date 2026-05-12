@@ -88,7 +88,6 @@ async function main(): Promise<void> {
   const { client: inferenceClient, mode: inferenceMode } = buildInferenceClient(logger);
   logger.info("inference backend", { mode: inferenceMode });
 
-  // ----- Breeding orchestrator (existing) -----
   const synthesizer = new BreedSynthesizer({ inference: inferenceClient, logger });
   const crossoverOrchestrator = new CrossoverOrchestrator({
     registry,
@@ -101,7 +100,6 @@ async function main(): Promise<void> {
     },
   });
 
-  // ----- Round orchestrator (NEW: autonomous flow) -----
   const tavilyApiKey = process.env.TAVILY_API_KEY ?? "";
   if (!tavilyApiKey) {
     logger.warn(

@@ -1,10 +1,4 @@
-// Maps tool names that may appear in an agent's TOOLS.md onto the canonical
-// names registered in the runtime ToolRegistry. Existing founder agents listed
-// things like "dune" or "etherscan" before the executable registry existed;
-// this layer keeps those references useful instead of decorative.
-
 const ALIASES: Record<string, string> = {
-  // chain-reading aliases
   dune: "read_on_chain",
   etherscan: "read_on_chain",
   blockscout: "read_on_chain",
@@ -12,7 +6,6 @@ const ALIASES: Record<string, string> = {
   "chain-reader": "read_on_chain",
   read_on_chain: "read_on_chain",
 
-  // web research aliases
   web: "web_search",
   search: "web_search",
   google: "web_search",
@@ -24,14 +17,12 @@ const ALIASES: Record<string, string> = {
   x: "web_search",
   web_search: "web_search",
 
-  // price feed aliases
   coingecko: "fetch_token_price",
   price: "fetch_token_price",
   prices: "fetch_token_price",
   ticker: "fetch_token_price",
   fetch_token_price: "fetch_token_price",
 
-  // market state aliases
   market: "fetch_market_state",
   round: "fetch_market_state",
   pool: "fetch_market_state",
