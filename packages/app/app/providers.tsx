@@ -6,6 +6,8 @@ import { WagmiProvider } from "@privy-io/wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { wagmiConfig } from "@/lib/wagmi";
 import { chain } from "@/lib/chain";
+import { EarnedSkillToastHost } from "@/components/notifications/earned-skill-toast-host";
+import { EarnedSkillWatcher } from "@/components/notifications/earned-skill-watcher";
 
 const APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? "";
 
@@ -61,7 +63,11 @@ export function Providers({ children }: { children: ReactNode }) {
       }}
     >
       <QueryClientProvider client={queryClient}>
-        <WagmiProvider config={wagmiConfig}>{children}</WagmiProvider>
+        <WagmiProvider config={wagmiConfig}>
+          {children}
+          <EarnedSkillWatcher />
+          <EarnedSkillToastHost />
+        </WagmiProvider>
       </QueryClientProvider>
     </PrivyProvider>
   );
