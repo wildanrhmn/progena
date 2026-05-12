@@ -29,6 +29,8 @@ export const configSchema = z.object({
     reputationOracle: addressSchema,
     predictionRound: addressSchema,
     agentMemory: addressSchema,
+    agentMetadata: addressSchema,
+    roundMetadata: addressSchema,
   }),
   genomeWriterPrivateKey: privateKeySchema,
   reporterPrivateKey: privateKeySchema.optional(),
@@ -64,6 +66,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       reputationOracle: env.PROGENA_REPUTATION_ORACLE,
       predictionRound: env.PROGENA_PREDICTION_ROUND,
       agentMemory: env.PROGENA_AGENT_MEMORY,
+      agentMetadata:
+        env.PROGENA_AGENT_METADATA ?? "0xfc3590a397f8fc0e729a5bcfe6a1040da20e432b",
+      roundMetadata:
+        env.PROGENA_ROUND_METADATA ?? "0x884b9c792ec6423e3005c689e47a3f24247d3c5a",
     },
     genomeWriterPrivateKey: env.GENOME_WRITER_PRIVATE_KEY,
     reporterPrivateKey: emptyToUndefined(env.REPORTER_PRIVATE_KEY),
