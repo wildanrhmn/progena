@@ -79,6 +79,14 @@ export class PrepareCommitServer {
     }
 
     if (req.method === "POST" && url.pathname === "/prepare-commit") {
+      const requiredToken = process.env.RUNTIME_API_TOKEN;
+      if (requiredToken) {
+        const auth = req.headers.authorization ?? "";
+        if (auth !== `Bearer ${requiredToken}`) {
+          this.send(res, { status: 401, body: { error: "unauthorized" } });
+          return;
+        }
+      }
       const body = await readJsonBody<PrepareCommitRequestBody>(req).catch(() => undefined);
       if (!body) {
         this.send(res, { status: 400, body: { error: "invalid json body" } });

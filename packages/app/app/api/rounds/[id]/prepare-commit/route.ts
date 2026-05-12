@@ -39,10 +39,14 @@ export async function POST(req: Request, { params }: Params) {
     );
   }
 
+  const token = process.env.RUNTIME_API_TOKEN;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   try {
     const upstream = await fetch(`${DAEMON_URL}/prepare-commit`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         roundId: roundIdBig.toString(),
         agentId: agentIdBig.toString(),
