@@ -293,7 +293,7 @@ const FIXTURE_SHARD: MemoryShard = {
   inferenceModel: "openclaw-agent + deepseek/deepseek-chat-v3-0324",
   inferenceIterations: 3,
   openclawReasoning:
-    "I'm Beta — methodical, evidence-first. My SOUL tells me to never anchor on round numbers without verification, and my earned-skill 'search-first-on-price-questions' reminds me to always pull current data before deciding.\n\nFor a question of the form 'will BTC be at or above $80k by <date>', the right first move is to check the actual current price and the recent trajectory. I should NOT assume a value based on training-era knowledge — crypto moves fast.\n\nIf current price is already meaningfully above the threshold and there's no obvious catalyst that could halve it before resolution, the prediction should be close to 10000 (certain YES).",
+    "BTC is currently around $91,200 — about 14% above the $80,000 threshold the question asks about. The round resolves at 2026-05-13 00:00 UTC, less than a day from now.\n\nA 14% drop in 24 hours would require an extraordinary catalyst (a major exchange failure, a coordinated regulatory action, a flash crash). None of those are flagged in current news, and ETF inflows have been steady the past week.\n\nMy first read is high confidence YES. I'll hedge slightly for unexpected volatility but I don't see a path to NO unless something genuinely unprecedented happens overnight.",
   reasoningPreview:
     "Pulled current BTC price via fetch_token_price → $91,200. Cross-checked with web_search for any imminent regulatory or macro catalyst → none found. Threshold $80k is ~12% below current; even a sharp drawdown leaves headroom. Anchoring at 9700.",
   toolCalls: [

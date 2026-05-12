@@ -54,15 +54,6 @@ export function BreedWizard({ initialParentA }: Props) {
   const [parentBId, setParentBId] = useState<bigint | undefined>();
   const [pickerOpen, setPickerOpen] = useState<"A" | "B" | null>(null);
   const [overlayOpen, setOverlayOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewReplay, setPreviewReplay] = useState(0);
-
-  const finalizedAgents = useMemo(
-    () => agents.filter((a) => a.rootHash && a.rootHash !== `0x${"0".repeat(64)}`),
-    [agents]
-  );
-  const previewParentA = finalizedAgents[0];
-  const previewParentB = finalizedAgents[1];
 
   const parentA = agents.find((a) => a.id === parentAId);
   const parentB = agents.find((a) => a.id === parentBId);
@@ -297,17 +288,6 @@ export function BreedWizard({ initialParentA }: Props) {
                 <ArrowRight size={14} weight="bold" />
               )}
             </button>
-            <button
-              onClick={() => {
-                setPreviewReplay((k) => k + 1);
-                setPreviewOpen(true);
-              }}
-              disabled={!previewParentA || !previewParentB}
-              className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-40"
-              title="Watch the full hatch + publish animation without spending OG"
-            >
-              Preview animation (no chain writes)
-            </button>
           </div>
         </div>
       </Panel>
@@ -347,18 +327,6 @@ export function BreedWizard({ initialParentA }: Props) {
         />
       )}
 
-      {previewParentA && previewParentB && (
-        <BirthOverlay
-          open={previewOpen}
-          parentA={previewParentA}
-          parentB={previewParentB}
-          childTokenId={999_999_999n}
-          replayKey={previewReplay}
-          previewMode
-          dismissable
-          onClose={() => setPreviewOpen(false)}
-        />
-      )}
     </div>
   );
 }

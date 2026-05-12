@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { parseEther } from "viem";
-import { useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { parseEther, type Address } from "viem";
+import {
+  useAccount,
+  useBalance,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from "wagmi";
 import { CircleNotch, X } from "@phosphor-icons/react";
 import {
   predictionRoundContract,
@@ -13,6 +18,9 @@ import {
 } from "@/lib/contracts";
 import { questionHashOf } from "@/lib/round-questions";
 import { useNextRoundId } from "@/hooks/use-rounds";
+import { savePendingPublish, clearPendingPublish } from "@/lib/pending-publish";
+
+const GAS_BUFFER_OG = 0.005;
 
 function toUnix(local: string): bigint {
   return BigInt(Math.floor(new Date(local).getTime() / 1000));
@@ -33,6 +41,11 @@ type Props = {
 export function CreateRoundModal({ open, onClose, onSuccess }: Props) {
   const router = useRouter();
   const { data: nextRaw, refetch: refetchNext } = useNextRoundId();
+  const { address } = useAccount();
+  const { data: balance } = useBalance({
+    address: address as Address | undefined,
+    query: { enabled: !!address, refetchInterval: 8_000 },
+  });
 
   const [question, setQuestion] = useState("");
   const [commitAt, setCommitAt] = useState(nowPlus(30));
@@ -64,11 +77,13 @@ export function CreateRoundModal({ open, onClose, onSuccess }: Props) {
     refetchNext().then(({ data }) => {
       if (data) {
         const id = BigInt(data) - 1n;
+        const trimmed = question.trim();
         setNewRoundId(id);
+        savePendingPublish(id, trimmed);
         writePublish({
           ...roundMetadataContract,
           functionName: "publishQuestion",
-          args: [id, question.trim()],
+          args: [id, trimmed],
         });
       }
     });
@@ -76,6 +91,7 @@ export function CreateRoundModal({ open, onClose, onSuccess }: Props) {
 
   useEffect(() => {
     if (!publishSuccess || newRoundId === undefined) return;
+    clearPendingPublish(newRoundId);
     onSuccess?.();
     const id = newRoundId.toString();
     const t = setTimeout(() => {
@@ -90,6 +106,22 @@ export function CreateRoundModal({ open, onClose, onSuccess }: Props) {
 
   const inFlight =
     createPending || createConfirming || publishPending || publishConfirming;
+
+  const parsedEntryFee = useMemo(() => {
+    try {
+      return parseEther(entryFee || "0");
+    } catch {
+      return undefined;
+    }
+  }, [entryFee]);
+
+  const gasBufferWei = parseEther(GAS_BUFFER_OG.toString());
+  const requiredWei =
+    parsedEntryFee !== undefined ? parsedEntryFee + gasBufferWei : undefined;
+  const insufficient =
+    !!balance &&
+    requiredWei !== undefined &&
+    balance.value < requiredWei;
 
   const close = () => {
     if (inFlight) return;
@@ -224,6 +256,13 @@ export function CreateRoundModal({ open, onClose, onSuccess }: Props) {
               </Field>
 
               {error && <p className="text-xs text-red-400">{error}</p>}
+
+              {insufficient && (
+                <p className="rounded-md border border-red-900/50 bg-red-950/30 px-3 py-2 text-xs text-red-300">
+                  Wallet balance is low for the entry fee + 2-tx gas. Top up if
+                  the tx fails.
+                </p>
+              )}
             </div>
 
             <div className="mt-6 flex items-center justify-end gap-2 border-t border-zinc-800/80 pt-5">
@@ -236,7 +275,7 @@ export function CreateRoundModal({ open, onClose, onSuccess }: Props) {
               </button>
               <button
                 onClick={submit}
-                disabled={inFlight}
+                disabled={inFlight || insufficient}
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {inFlight && <CircleNotch size={14} className="animate-spin" />}
@@ -248,7 +287,9 @@ export function CreateRoundModal({ open, onClose, onSuccess }: Props) {
                       ? "Confirm publish in wallet…"
                       : publishConfirming
                         ? "Publishing question text…"
-                        : "Create round"}
+                        : insufficient
+                          ? "Insufficient OG"
+                          : "Create round"}
               </button>
             </div>
           </motion.div>

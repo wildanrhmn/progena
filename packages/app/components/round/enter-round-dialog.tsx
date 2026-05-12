@@ -1,45 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { formatEther, type Address } from "viem";
 import { useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import {
+  ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  CheckCircle,
   CircleNotch,
-  Lightning,
-  Sparkle,
-  Target,
   X,
 } from "@phosphor-icons/react";
 import { predictionRoundContract } from "@/lib/contracts";
 import { displayNameOf, type AgentRow } from "@/hooks/use-agents";
-import { ExpandableList, ExpandableText } from "@/components/ui/expandable";
 import { EXPLORER_URL } from "@/lib/chain";
 
-type Props = {
-  roundId: bigint;
-  entryFee: bigint;
-  ownedAgents: AgentRow[];
-  question: string | undefined;
-  open: boolean;
-  ownerAddress?: Address;
-  onClose: () => void;
-  onSuccess?: () => void;
-  demoMode?: boolean;
-  previewPrepared?: PreparedCommit;
-};
-
-type Phase =
-  | "pick"
-  | "preparing"
-  | "preview"
-  | "signing"
-  | "confirming"
-  | "done"
-  | "error";
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 const FRIENDLY_TOOL_NAMES: Record<string, string> = {
   fetch_token_price: "Price feed",
@@ -51,9 +29,7 @@ const FRIENDLY_TOOL_NAMES: Record<string, string> = {
 function friendlyToolName(name: string): string {
   return (
     FRIENDLY_TOOL_NAMES[name] ??
-    name
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase())
+    name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
   );
 }
 
@@ -74,6 +50,54 @@ interface PreparedCommit {
   }>;
   inferenceModel?: string;
   inferenceIterations?: number;
+}
+
+type Props = {
+  roundId: bigint;
+  entryFee: bigint;
+  ownedAgents: AgentRow[];
+  question: string | undefined;
+  open: boolean;
+  ownerAddress?: Address;
+  onClose: () => void;
+  onSuccess?: () => void;
+  demoMode?: boolean;
+  previewPrepared?: PreparedCommit;
+};
+
+type Phase =
+  | "pick"
+  | "preparing"
+  | "preview"
+  | "details"
+  | "signing"
+  | "confirming"
+  | "done"
+  | "error";
+
+const PREPARING_MESSAGES = [
+  "Waking up your agent",
+  "Reading personality + past lessons",
+  "Checking live data",
+  "Sealing the answer",
+];
+
+function cardBase(extra?: string): string {
+  return [
+    "relative w-full flex flex-col overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950 shadow-2xl",
+    extra ?? "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function GradientLine() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent"
+    />
+  );
 }
 
 export function EnterRoundDialog({
@@ -128,9 +152,11 @@ export function EnterRoundDialog({
     reset();
   };
 
+  const closeable =
+    phase !== "preparing" && phase !== "signing" && phase !== "confirming";
+
   const close = () => {
-    if (phase === "preparing" || phase === "signing" || phase === "confirming")
-      return;
+    if (!closeable) return;
     onClose();
     resetAll();
   };
@@ -144,7 +170,7 @@ export function EnterRoundDialog({
     setPhase("preparing");
 
     if (demoMode && previewPrepared) {
-      await new Promise((resolve) => setTimeout(resolve, 1800));
+      await new Promise((r) => setTimeout(r, 1800));
       setPrepared(previewPrepared);
       setPhase("preview");
       return;
@@ -196,257 +222,394 @@ export function EnterRoundDialog({
   };
 
   const predictionPct = prepared ? prepared.prediction / 100 : 0;
+  const selectedAgent = ownedAgents.find((a) => a.id === agentId);
 
   if (typeof document === "undefined") return null;
 
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-10">
-          <motion.button
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-10"
+        >
+          <button
             type="button"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={close}
             aria-label="Close"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
           />
-          <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.94 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.97 }}
-            transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-            className="relative max-h-[calc(100vh-5rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-zinc-800/80 bg-zinc-950 p-6 shadow-2xl"
+
+          <button
+            onClick={close}
+            disabled={!closeable}
+            aria-label="Close"
+            className="absolute right-4 top-4 z-[110] rounded-full border border-zinc-800/80 bg-zinc-950/90 p-1.5 text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-100 disabled:opacity-30"
           >
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-life/70 to-transparent"
-            />
-            <button
-              onClick={close}
-              className="absolute right-4 top-4 text-zinc-500 transition-colors hover:text-zinc-100"
-              aria-label="Close"
-            >
-              <X size={16} weight="bold" />
-            </button>
+            <X size={14} weight="bold" />
+          </button>
 
-            <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-accent-life/80">
-              <Lightning size={12} weight="fill" />
-              Round #{roundId.toString()} · enter
-            </div>
-            <h3 className="text-xl font-semibold tracking-tight text-zinc-100">
-              Send an agent into this round
-            </h3>
-            {question && (
-              <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">
-                {question}
-              </p>
-            )}
-
-            {(phase === "pick" || phase === "preparing" || phase === "error") && (
-              <PickAgentStep
-                ownedAgents={ownedAgents}
-                agentId={agentId}
-                onChange={setAgentId}
-                preparing={phase === "preparing"}
-                error={error}
-              />
-            )}
-
-            {phase === "preview" && prepared && (
-              <PreviewStep prepared={prepared} predictionPct={predictionPct} />
-            )}
-
-            {(phase === "signing" || phase === "confirming" || phase === "done") &&
-              prepared && (
-                <SubmitStatusStep
-                  phase={phase}
-                  predictionPct={predictionPct}
-                  txHash={txHash}
+          <div className="relative flex w-full justify-center">
+            <AnimatePresence mode="wait">
+              {phase === "pick" && (
+                <PickCard
+                  key="pick"
+                  question={question}
+                  roundId={roundId}
+                  agents={ownedAgents}
+                  selectedId={agentId}
+                  onSelect={setAgentId}
+                  error={error}
+                  entryFee={entryFee}
+                  onRun={runInference}
                 />
               )}
-
-            <DialogFooter
-              entryFee={entryFee}
-              phase={phase}
-              ownedAgentsCount={ownedAgents.length}
-              agentId={agentId}
-              onRun={runInference}
-              onSign={sign}
-              onRetry={() => setPhase("pick")}
-            />
-          </motion.div>
-        </div>
+              {phase === "preparing" && (
+                <PreparingCard key="preparing" agent={selectedAgent} />
+              )}
+              {phase === "preview" && prepared && (
+                <PreviewCard
+                  key="preview"
+                  prepared={prepared}
+                  predictionPct={predictionPct}
+                  agent={selectedAgent}
+                  entryFee={entryFee}
+                  onSign={sign}
+                  onShowDetails={() => setPhase("details")}
+                  question={question}
+                />
+              )}
+              {phase === "details" && prepared && (
+                <DetailsCard
+                  key="details"
+                  prepared={prepared}
+                  predictionPct={predictionPct}
+                  onBack={() => setPhase("preview")}
+                />
+              )}
+              {(phase === "signing" ||
+                phase === "confirming" ||
+                phase === "done") &&
+                prepared && (
+                  <SubmitCard
+                    key="submit"
+                    phase={phase}
+                    predictionPct={predictionPct}
+                    txHash={txHash}
+                  />
+                )}
+              {phase === "error" && (
+                <ErrorCard
+                  key="error"
+                  error={error}
+                  onRetry={() => setPhase("pick")}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
       )}
     </AnimatePresence>,
     document.body
   );
 }
 
-function PickAgentStep({
-  ownedAgents,
-  agentId,
-  onChange,
-  preparing,
+const cardEnter = {
+  initial: { opacity: 0, y: 14, scale: 0.97 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: -8, scale: 0.97 },
+  transition: { duration: 0.32, ease: EASE },
+};
+
+function PickCard({
+  question,
+  roundId,
+  agents,
+  selectedId,
+  onSelect,
   error,
+  entryFee,
+  onRun,
 }: {
-  ownedAgents: AgentRow[];
-  agentId: bigint | undefined;
-  onChange: (id: bigint) => void;
-  preparing: boolean;
+  question: string | undefined;
+  roundId: bigint;
+  agents: AgentRow[];
+  selectedId: bigint | undefined;
+  onSelect: (id: bigint) => void;
   error?: string;
+  entryFee: bigint;
+  onRun: () => void;
 }) {
+  const canRun = selectedId !== undefined && agents.length > 0;
   return (
-    <div className="mt-5 space-y-4">
-      <div>
-        <label className="mb-2 block text-xs uppercase tracking-wider text-zinc-400">
-          Pick one of your agents
-        </label>
-        {ownedAgents.length === 0 ? (
-          <p className="rounded-md border border-amber-700/40 bg-amber-900/10 px-3 py-2 text-xs text-amber-200">
-            You don't own any agents. Breed one first.
+    <motion.div {...cardEnter} className={cardBase("max-w-md")}>
+      <GradientLine />
+      <div className="px-6 pb-3 pt-6">
+        <div className="text-xs uppercase tracking-wider text-zinc-500">
+          Round #{roundId.toString()}
+        </div>
+        <h3 className="mt-1 text-base font-medium text-zinc-100">
+          Send an agent in
+        </h3>
+        {question && (
+          <p className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
+            {question}
           </p>
-        ) : (
-          <div className="space-y-2">
-            {ownedAgents.map((a) => {
-              const checked = agentId === a.id;
-              return (
-                <button
-                  key={a.id.toString()}
-                  type="button"
-                  disabled={preparing}
-                  onClick={() => onChange(a.id)}
-                  className={
-                    checked
-                      ? "flex w-full items-center justify-between rounded-md border border-accent-life/50 bg-accent-life/10 px-3 py-2.5 text-left transition-colors"
-                      : "flex w-full items-center justify-between rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2.5 text-left transition-colors hover:border-zinc-600 disabled:opacity-50"
-                  }
-                >
-                  <div>
-                    <div className="text-sm text-foreground">{displayNameOf(a)}</div>
-                    <div className="font-mono text-xs text-muted-foreground">
-                      #{a.id.toString()} · Gen {a.generation}
-                    </div>
-                  </div>
-                  <div
-                    className={
-                      checked
-                        ? "h-2.5 w-2.5 rounded-full bg-accent-life"
-                        : "h-2.5 w-2.5 rounded-full border border-zinc-600"
-                    }
-                  />
-                </button>
-              );
-            })}
-          </div>
         )}
       </div>
 
-      {preparing && (
-        <div className="space-y-2 rounded-md border border-accent-lineage/30 bg-accent-lineage/[0.05] p-3">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-accent-lineage">
-            <CircleNotch size={12} className="animate-spin" />
-            Your agent is making its prediction
-          </div>
-          <ul className="space-y-1 text-sm text-foreground/85">
-            <li>· Waking up your agent</li>
-            <li>· Reasoning from its personality and past lessons</li>
-            <li>· Checking live data — prices, news, on-chain state</li>
-            <li>· Sealing the answer in a hash for you to sign</li>
-          </ul>
-          <p className="text-xs text-muted-foreground">
-            This usually takes 30–60 seconds.
+      <div className="space-y-2 px-6 pb-4">
+        {agents.length === 0 ? (
+          <p className="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-400">
+            You don't own any agents yet.
           </p>
-        </div>
-      )}
+        ) : (
+          <>
+            <div className="text-xs uppercase tracking-wider text-zinc-500">
+              {agents.length} agent{agents.length === 1 ? "" : "s"}
+            </div>
+            <div className="max-h-[280px] space-y-1.5 overflow-y-auto pr-1">
+              {agents.map((a) => {
+                const checked = selectedId === a.id;
+                return (
+                  <button
+                    key={a.id.toString()}
+                    type="button"
+                    onClick={() => onSelect(a.id)}
+                    className={
+                      checked
+                        ? "flex w-full items-center justify-between rounded-md border border-accent-life/50 bg-accent-life/[0.06] px-3 py-2 text-left"
+                        : "flex w-full items-center justify-between rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-left transition-colors hover:border-zinc-600"
+                    }
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm text-foreground">
+                        {displayNameOf(a)}
+                      </div>
+                      <div className="font-mono text-xs text-zinc-500">
+                        Gen {a.generation} · #{a.id.toString()}
+                      </div>
+                    </div>
+                    <div
+                      className={
+                        checked
+                          ? "h-2 w-2 rounded-full bg-accent-life"
+                          : "h-2 w-2 rounded-full border border-zinc-600"
+                      }
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+        {error && <p className="text-xs text-red-400">{error}</p>}
+      </div>
 
-      {error && (
-        <p className="rounded-md border border-red-900/50 bg-red-950/30 px-3 py-2 text-xs text-red-300">
-          {error}
-        </p>
-      )}
-    </div>
+      <div className="flex items-center justify-between border-t border-zinc-800/80 px-6 py-4">
+        <span className="text-xs text-zinc-500">
+          Entry {formatEther(entryFee)} OG
+        </span>
+        <button
+          type="button"
+          onClick={onRun}
+          disabled={!canRun}
+          className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Make prediction
+          <ArrowRight size={14} weight="bold" />
+        </button>
+      </div>
+    </motion.div>
   );
 }
 
-function PreviewStep({
+function PreparingCard({ agent }: { agent?: AgentRow }) {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(
+      () => setIdx((i) => (i + 1) % PREPARING_MESSAGES.length),
+      1800
+    );
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <motion.div
+      {...cardEnter}
+      className={cardBase("max-w-sm items-center px-8 py-10")}
+    >
+      <GradientLine />
+      <CircleNotch size={32} className="animate-spin text-zinc-400" />
+      <div className="mt-4 text-center">
+        <div className="text-sm text-foreground">
+          {agent ? `${displayNameOf(agent)} is thinking` : "Thinking"}
+        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={idx}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.25, ease: EASE }}
+            className="mt-1 text-xs text-muted-foreground"
+          >
+            {PREPARING_MESSAGES[idx]}…
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      <p className="mt-3 text-xs text-zinc-600">~30–60 seconds</p>
+    </motion.div>
+  );
+}
+
+function PreviewCard({
   prepared,
   predictionPct,
+  agent,
+  entryFee,
+  onSign,
+  onShowDetails,
+  question,
 }: {
   prepared: PreparedCommit;
   predictionPct: number;
+  agent?: AgentRow;
+  entryFee: bigint;
+  onSign: () => void;
+  onShowDetails: () => void;
+  question: string | undefined;
 }) {
   const toolCount = prepared.toolCalls?.length ?? 0;
+  const hasDetails = !!prepared.openclawReasoning || toolCount > 0;
   return (
-    <div className="mt-5 space-y-4">
-      <div className="rounded-md border border-accent-life/30 bg-accent-life/[0.04] p-4">
-        <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-accent-life/90">
-          <Target size={12} weight="bold" />
-          Agent's prediction
-        </div>
-        <div className="mt-1.5 flex items-baseline gap-3">
-          <span className="font-display text-4xl font-light text-foreground tabular-nums">
-            {predictionPct.toFixed(2)}%
-          </span>
-          <span className="font-mono text-xs text-muted-foreground">
-            {prepared.prediction} bps
-          </span>
-        </div>
-      </div>
-
-      {prepared.openclawReasoning && (
-        <ExpandableText
-          tone="lineage"
-          label="How your agent thought about it"
-          text={prepared.openclawReasoning}
-          previewLines={3}
-          footnote="The full reasoning lands in the memory shard after the round resolves."
-        />
-      )}
-
-      {toolCount > 0 && prepared.toolCalls && (
-        <ExpandableList
-          tone="life"
-          heading="What your agent checked"
-          items={prepared.toolCalls.map((c, i) => ({
-            key: String(i),
-            label: friendlyToolName(c.tool),
-            body: c.summary,
-          }))}
-          initial={2}
-        />
-      )}
-
-      {prepared.reasoningPreview && (
-        <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-3">
-          <div className="mb-1 text-[11px] uppercase tracking-wider text-white/55">
-            Reasoning preview
-          </div>
-          <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-foreground/80">
-            {prepared.reasoningPreview}
+    <motion.div {...cardEnter} className={cardBase("max-w-md")}>
+      <GradientLine />
+      <div className="px-6 pb-4 pt-6">
+        {question && (
+          <p className="line-clamp-2 text-center text-sm leading-snug text-muted-foreground">
+            {question}
           </p>
+        )}
+        <div className="mt-5 text-center">
+          <div className="text-xs uppercase tracking-wider text-accent-life/80">
+            {agent ? displayNameOf(agent) : "Agent"} predicts
+          </div>
+          <div className="mt-1 font-display text-6xl font-light tabular-nums text-accent-life">
+            {predictionPct.toFixed(2)}%
+          </div>
+          <div className="mt-1 text-xs text-zinc-500">
+            confidence the answer is YES
+          </div>
         </div>
-      )}
 
-      <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-3">
-        <div className="mb-1.5 text-xs uppercase tracking-wider text-white/65">
-          Sealed commit hash
-        </div>
-        <p className="break-all font-mono text-xs text-foreground/80">
-          {prepared.commitHash}
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Your prediction is hidden inside this hash. Progena will reveal it
-          automatically after entries close, so you don't have to come back.
-        </p>
+        {hasDetails && (
+          <button
+            type="button"
+            onClick={onShowDetails}
+            className="mt-5 flex w-full items-center justify-between rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2.5 text-left text-xs text-zinc-300 transition-colors hover:border-zinc-600 hover:text-foreground"
+          >
+            <span className="uppercase tracking-wider text-zinc-500">
+              How it decided
+            </span>
+            <ArrowRight size={12} weight="bold" className="text-zinc-500" />
+          </button>
+        )}
       </div>
-    </div>
+
+      <div className="flex items-center justify-between border-t border-zinc-800/80 px-6 py-4">
+        <span className="text-xs text-zinc-500">
+          Entry {formatEther(entryFee)} OG
+        </span>
+        <button
+          type="button"
+          onClick={onSign}
+          className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-colors hover:bg-emerald-500"
+        >
+          Sign · {formatEther(entryFee)} OG
+          <ArrowRight size={14} weight="bold" />
+        </button>
+      </div>
+    </motion.div>
   );
 }
 
-function SubmitStatusStep({
+function DetailsCard({
+  prepared,
+  predictionPct,
+  onBack,
+}: {
+  prepared: PreparedCommit;
+  predictionPct: number;
+  onBack: () => void;
+}) {
+  const toolCount = prepared.toolCalls?.length ?? 0;
+  return (
+    <motion.div
+      {...cardEnter}
+      className={cardBase("max-w-2xl max-h-[calc(100vh-4rem)]")}
+    >
+      <GradientLine />
+      <div className="flex items-center justify-between px-6 pb-3 pt-6">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft size={11} weight="bold" />
+          Back to prediction
+        </button>
+        <div className="flex items-baseline gap-2 text-xs">
+          <span className="uppercase tracking-wider text-accent-life/80">
+            Predicted
+          </span>
+          <span className="font-mono text-accent-life">
+            {predictionPct.toFixed(2)}%
+          </span>
+        </div>
+      </div>
+
+      <div className="flex-1 space-y-5 overflow-y-auto px-6 pb-6">
+        {prepared.openclawReasoning && (
+          <div>
+            <div className="mb-2 text-xs uppercase tracking-wider text-accent-life/80">
+              Reasoning
+            </div>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
+              {prepared.openclawReasoning}
+            </p>
+          </div>
+        )}
+        {toolCount > 0 && prepared.toolCalls && (
+          <div>
+            <div className="mb-2 text-xs uppercase tracking-wider text-accent-life/80">
+              Sources checked
+            </div>
+            <ul className="space-y-2">
+              {prepared.toolCalls.map((c, i) => (
+                <li
+                  key={i}
+                  className="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2"
+                >
+                  <div className="text-xs uppercase tracking-wider text-zinc-500">
+                    {friendlyToolName(c.tool)}
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
+                    {c.summary}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+function SubmitCard({
   phase,
   predictionPct,
   txHash,
@@ -455,105 +618,63 @@ function SubmitStatusStep({
   predictionPct: number;
   txHash: `0x${string}` | undefined;
 }) {
+  const done = phase === "done";
   return (
-    <div className="mt-5 space-y-4">
-      <div className="flex items-center gap-3 rounded-md border border-accent-life/30 bg-accent-life/[0.04] px-4 py-4">
-        {phase !== "done" ? (
-          <CircleNotch size={18} className="animate-spin text-accent-life" />
-        ) : (
-          <Sparkle size={18} weight="fill" className="text-accent-life" />
-        )}
-        <div className="flex-1">
-          <div className="text-sm text-foreground">
-            {phase === "signing" && "Confirm in your wallet…"}
-            {phase === "confirming" && "Sealing on 0G mainnet…"}
-            {phase === "done" && "Sealed. We'll reveal your prediction automatically after entries close."}
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            Committed prediction: {predictionPct.toFixed(2)}%
-          </div>
+    <motion.div
+      {...cardEnter}
+      className={cardBase("max-w-sm items-center px-8 py-10")}
+    >
+      <GradientLine />
+      {done ? (
+        <CheckCircle size={36} weight="fill" className="text-accent-life" />
+      ) : (
+        <CircleNotch size={32} className="animate-spin text-zinc-400" />
+      )}
+      <div className="mt-4 text-center">
+        <div className="text-sm text-foreground">
+          {phase === "signing" && "Confirm in your wallet"}
+          {phase === "confirming" && "Sealing on-chain"}
+          {done && "Sealed"}
+        </div>
+        <div className="mt-1 text-xs text-zinc-500">
+          {predictionPct.toFixed(2)}% committed
         </div>
       </div>
       {txHash && (
-        <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-3">
-          <div className="mb-1.5 flex items-center justify-between text-xs uppercase tracking-wider text-white/65">
-            <span>Transaction</span>
-            <a
-              href={`${EXPLORER_URL}/tx/${txHash}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 normal-case tracking-normal text-accent-life hover:text-accent-life/80"
-            >
-              View on explorer
-              <ArrowUpRight size={11} weight="bold" />
-            </a>
-          </div>
-          <p className="break-all font-mono text-xs text-foreground/80">
-            {txHash}
-          </p>
-        </div>
+        <a
+          href={`${EXPLORER_URL}/tx/${txHash}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex items-center gap-1 text-xs text-zinc-400 transition-colors hover:text-foreground"
+        >
+          {txHash.slice(0, 8)}…{txHash.slice(-6)}
+          <ArrowUpRight size={11} weight="bold" />
+        </a>
       )}
-    </div>
+    </motion.div>
   );
 }
 
-function DialogFooter({
-  entryFee,
-  phase,
-  ownedAgentsCount,
-  agentId,
-  onRun,
-  onSign,
+function ErrorCard({
+  error,
   onRetry,
 }: {
-  entryFee: bigint;
-  phase: Phase;
-  ownedAgentsCount: number;
-  agentId: bigint | undefined;
-  onRun: () => void;
-  onSign: () => void;
+  error?: string;
   onRetry: () => void;
 }) {
-  const feeLabel = `${formatEther(entryFee)} OG`;
   return (
-    <div className="mt-6 flex items-center justify-between border-t border-zinc-800/80 pt-5">
-      <div className="text-xs uppercase tracking-wider text-zinc-400">
-        Entry fee {feeLabel}
-      </div>
-      <div className="flex items-center gap-2">
-        {(phase === "pick" || phase === "preparing") && (
-          <button
-            onClick={onRun}
-            disabled={
-              phase === "preparing" || ownedAgentsCount === 0 || agentId === undefined
-            }
-            className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-medium text-neutral-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {phase === "preparing" && (
-              <CircleNotch size={12} className="animate-spin" />
-            )}
-            {phase === "preparing" ? "Thinking…" : "Make a prediction"}
-            {phase !== "preparing" && <ArrowRight size={12} weight="bold" />}
-          </button>
-        )}
-        {phase === "preview" && (
-          <button
-            onClick={onSign}
-            className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-medium text-neutral-950 transition-opacity hover:opacity-90"
-          >
-            Sign & submit · {feeLabel}
-            <ArrowRight size={12} weight="bold" />
-          </button>
-        )}
-        {phase === "error" && (
-          <button
-            onClick={onRetry}
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs text-zinc-200 transition-colors hover:border-zinc-500"
-          >
-            Try again
-          </button>
-        )}
-      </div>
-    </div>
+    <motion.div {...cardEnter} className={cardBase("max-w-sm p-6")}>
+      <GradientLine />
+      <p className="rounded-md border border-red-900/50 bg-red-950/30 px-3 py-2 text-sm text-red-300">
+        {error ?? "Something went wrong."}
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-4 self-end rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs text-zinc-200 transition-colors hover:border-zinc-500"
+      >
+        Try again
+      </button>
+    </motion.div>
   );
 }

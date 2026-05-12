@@ -18,6 +18,7 @@ import { useReadContracts } from "wagmi";
 import { predictionRoundContract } from "@/lib/contracts";
 import { ADDRESSES } from "@/lib/chain";
 import { EnterRoundDialog } from "./enter-round-dialog";
+import { ResumePublishPanel } from "./resume-publish-panel";
 import {
   CINEMATIC_EASE,
   CommittedAgents,
@@ -44,7 +45,7 @@ export function RoundDetail({ roundId }: Props) {
     [agentIdsRaw]
   );
   const { agents: committedAgents } = useAgentRows(agentIds);
-  const { text: question } = useRoundQuestion(roundId);
+  const { text: question, refetch: refetchQuestion } = useRoundQuestion(roundId);
 
   const { authenticated, user } = usePrivy();
   const viewer = (
@@ -109,6 +110,8 @@ export function RoundDetail({ roundId }: Props) {
     commitmentResults,
   });
 
+  const needsQuestion = !question && !round.resolved;
+
   return (
     <div className="container mx-auto max-w-5xl space-y-6 px-4 py-10">
       <Link
@@ -132,12 +135,23 @@ export function RoundDetail({ roundId }: Props) {
 
       <RoundPhaseTrack phase={lifecycle.phase} />
 
-      <ActionForPhase
-        lifecycle={lifecycle}
-        round={round}
-        ownedCount={ownedAgents.length}
-        onEnter={() => setEnterOpen(true)}
-      />
+      {needsQuestion ? (
+        <ResumePublishPanel
+          roundId={roundId}
+          expectedHash={round.questionHash}
+          onSuccess={() => {
+            refetchQuestion();
+            refetch();
+          }}
+        />
+      ) : (
+        <ActionForPhase
+          lifecycle={lifecycle}
+          round={round}
+          ownedCount={ownedAgents.length}
+          onEnter={() => setEnterOpen(true)}
+        />
+      )}
 
       <CommittedAgents agents={committedViews} phase={lifecycle.phase} />
 

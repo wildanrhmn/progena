@@ -3,7 +3,10 @@
 import { useMemo } from "react";
 import { useReadContract, useReadContracts } from "wagmi";
 import type { Address } from "viem";
-import { predictionRoundContract } from "@/lib/contracts";
+import {
+  predictionRoundContract,
+  roundMetadataContract,
+} from "@/lib/contracts";
 
 export type RoundStatus = "NonExistent" | "Open" | "RevealPhase" | "Closed" | "Resolved";
 const STATUS_LABELS: RoundStatus[] = [
@@ -96,6 +99,7 @@ export function useRoundsList(limit = 20) {
       ids.flatMap((id) => [
         { ...predictionRoundContract, functionName: "roundOf", args: [id] } as const,
         { ...predictionRoundContract, functionName: "statusOf", args: [id] } as const,
+        { ...roundMetadataContract, functionName: "questionOf", args: [id] } as const,
       ]),
     [ids]
   );
@@ -108,13 +112,21 @@ export function useRoundsList(limit = 20) {
 
   const rounds = useMemo<RoundData[]>(() => {
     if (!data) return [];
+    const nowSec = BigInt(Math.floor(Date.now() / 1000));
     const out: RoundData[] = [];
     for (let i = 0; i < ids.length; i++) {
-      const roundRes = data[i * 2];
-      const statusRes = data[i * 2 + 1];
+      const roundRes = data[i * 3];
+      const statusRes = data[i * 3 + 1];
+      const questionRes = data[i * 3 + 2];
       if (roundRes?.status !== "success" || statusRes?.status !== "success") continue;
       const tuple = roundRes.result as Omit<RoundData, "id" | "status">;
       const statusIdx = Number(statusRes.result as number);
+      const questionText =
+        questionRes?.status === "success" ? (questionRes.result as string) : "";
+      const hasQuestion = typeof questionText === "string" && questionText.length > 0;
+      const isDead =
+        !tuple.resolved && tuple.revealDeadline < nowSec && !hasQuestion;
+      if (isDead) continue;
       out.push({
         id: ids[i]!,
         ...tuple,

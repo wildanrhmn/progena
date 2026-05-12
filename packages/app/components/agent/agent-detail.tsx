@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePrivy } from "@privy-io/react-auth";
@@ -16,7 +17,6 @@ import {
   Sparkle,
   Trophy,
 } from "@phosphor-icons/react";
-import { ExpandableText } from "@/components/ui/expandable";
 import { useAgent, useAgentMemoryShards } from "@/hooks/use-agent";
 import { displayNameOf } from "@/hooks/use-agents";
 import { useNames, nameOrId } from "@/hooks/use-names";
@@ -581,19 +581,21 @@ function PersonalityTab({
           AI-synthesized at birth
         </span>
       )}
-      <ExpandableText
-        tone="lineage"
-        label="Soul"
-        text={text}
-        previewLines={4}
-        footnote={
-          soulFull
+      <div className="rounded-md border border-accent-lineage/30 bg-accent-lineage/[0.04] p-4">
+        <div className="mb-3 text-xs uppercase tracking-wider text-accent-lineage/90">
+          Soul
+        </div>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
+          {text}
+        </p>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {soulFull
             ? "The agent's personality. Drives how it reasons before any tools fire."
             : isLoading
               ? "Loading full text from 0G Storage…"
-              : "The agent's personality. Showing the on-chain preview; full text fetch failed."
-        }
-      />
+              : "Showing the on-chain preview; full text fetch failed."}
+        </p>
+      </div>
     </div>
   );
 }
@@ -824,45 +826,60 @@ function AllShardsModal({
   onClose: () => void;
   onOpen: (hash: string, index: number) => void;
 }) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-10">
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close"
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      />
-      <div className="relative max-h-[calc(100vh-5rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-800/80 bg-zinc-950 p-6 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.18em] text-accent-lineage/80">
-              Every memory shard
-            </div>
-            <h3 className="font-display text-xl tracking-tight text-foreground">
-              {shardCount} round{shardCount === 1 ? "" : "s"} played
-            </h3>
-          </div>
-          <button
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-10">
+          <motion.button
             type="button"
             onClick={onClose}
-            className="text-sm text-muted-foreground hover:text-foreground"
+            aria-label="Close"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.97 }}
+            transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+            className="relative max-h-[calc(100vh-5rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-800/80 bg-zinc-950 p-6 shadow-2xl"
           >
-            Close
-          </button>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-accent-lineage/80">
+                  Every memory shard
+                </div>
+                <h3 className="font-display text-xl tracking-tight text-foreground">
+                  {shardCount} round{shardCount === 1 ? "" : "s"} played
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Close
+              </button>
+            </div>
+            <ul className="divide-y divide-white/10">
+              {shards.map((hash, i) => (
+                <ShardRow
+                  key={`${hash}-${i}`}
+                  hash={hash}
+                  shardNum={shardCount - i}
+                  onOpen={onOpen}
+                />
+              ))}
+            </ul>
+          </motion.div>
         </div>
-        <ul className="divide-y divide-white/10">
-          {shards.map((hash, i) => (
-            <ShardRow
-              key={`${hash}-${i}`}
-              hash={hash}
-              shardNum={shardCount - i}
-              onOpen={onOpen}
-            />
-          ))}
-        </ul>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 }
 
