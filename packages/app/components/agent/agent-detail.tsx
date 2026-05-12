@@ -23,6 +23,7 @@ import { useNames, nameOrId } from "@/hooks/use-names";
 import { useDescendants } from "@/hooks/use-descendants";
 import { useTraits } from "@/hooks/use-traits";
 import { useEarnedSkills } from "@/hooks/use-earned-skills";
+import { useFullSoul } from "@/hooks/use-full-soul";
 import { Panel, BracketBox } from "@/components/ui/panel";
 import { SetNameButton } from "./set-name-dialog";
 import { ShardModal } from "./shard-modal";
@@ -216,7 +217,11 @@ export function AgentDetail({ agentId }: Props) {
         />
       </div>
 
-      <ProfileSection traits={traits} earnedSkills={earnedSkills} />
+      <ProfileSection
+        agentId={agent.id}
+        traits={traits}
+        earnedSkills={earnedSkills}
+      />
 
       <Panel>
         <div className="p-6">
@@ -450,26 +455,35 @@ function ParentTile({
 
 const TAB_EASE = [0.16, 1, 0.3, 1] as const;
 
-type ProfileTabId = "personality" | "skills" | "tools" | "earned";
+type ProfileTabId = "personality" | "capabilities" | "earned";
 type Traits = NonNullable<ReturnType<typeof useTraits>["traits"]>;
 type EarnedSkill = ReturnType<typeof useEarnedSkills>["skills"][number];
 
+function prettifyEarnedSkillName(raw: string): string {
+  const stripped = raw.replace(/^earned-/, "");
+  if (stripped.length === 0) return raw;
+  const spaced = stripped.replace(/-/g, " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 function ProfileSection({
+  agentId,
   traits,
   earnedSkills,
 }: {
+  agentId: bigint;
   traits: Traits | undefined;
   earnedSkills: EarnedSkill[];
 }) {
   const hasSkills = traits && traits.skills.length > 0;
   const hasTools = traits && traits.tools.length > 0;
+  const hasCapabilities = hasSkills || hasTools;
   const hasSoul = traits && !!traits.soulPreview;
   const earnedCount = earnedSkills.length;
 
   const tabs: Array<{ id: ProfileTabId; label: string; disabled: boolean }> = [
     { id: "personality", label: "Personality", disabled: !hasSoul },
-    { id: "skills", label: "Skills", disabled: !hasSkills },
-    { id: "tools", label: "Tools", disabled: !hasTools },
+    { id: "capabilities", label: "Capabilities", disabled: !hasCapabilities },
     {
       id: "earned",
       label: earnedCount > 0 ? `Earned · ${earnedCount}` : "Earned",
@@ -534,13 +548,10 @@ function ProfileSection({
             transition={{ duration: 0.3, ease: TAB_EASE }}
           >
             {active === "personality" && hasSoul && traits && (
-              <PersonalityTab traits={traits} />
+              <PersonalityTab agentId={agentId} traits={traits} />
             )}
-            {active === "skills" && hasSkills && traits && (
-              <SkillsTab traits={traits} />
-            )}
-            {active === "tools" && hasTools && traits && (
-              <ToolsTab traits={traits} />
+            {active === "capabilities" && hasCapabilities && traits && (
+              <CapabilitiesTab traits={traits} />
             )}
             {active === "earned" && (
               <EarnedTab skills={earnedSkills} />
@@ -552,7 +563,16 @@ function ProfileSection({
   );
 }
 
-function PersonalityTab({ traits }: { traits: Traits }) {
+function PersonalityTab({
+  agentId,
+  traits,
+}: {
+  agentId: bigint;
+  traits: Traits;
+}) {
+  const { soulFull, isLoading } = useFullSoul(agentId);
+  const cleanPreview = (traits.soulPreview ?? "").replace(/…$/, "").trim();
+  const text = soulFull && soulFull.length > 0 ? soulFull : cleanPreview;
   return (
     <div className="space-y-3">
       {traits.synthesizedSoul && (
@@ -563,96 +583,102 @@ function PersonalityTab({ traits }: { traits: Traits }) {
       )}
       <ExpandableText
         tone="lineage"
-        label="SOUL.md preview"
-        text={traits.soulPreview ?? ""}
+        label="Soul"
+        text={text}
         previewLines={4}
-        footnote="The agent's personality. Drives how it reasons before any tools fire."
+        footnote={
+          soulFull
+            ? "The agent's personality. Drives how it reasons before any tools fire."
+            : isLoading
+              ? "Loading full text from 0G Storage…"
+              : "The agent's personality. Showing the on-chain preview; full text fetch failed."
+        }
       />
     </div>
   );
 }
 
-function SkillsTab({ traits }: { traits: Traits }) {
+function CapabilitiesTab({ traits }: { traits: Traits }) {
+  const hasSkills = traits.skills.length > 0;
+  const hasTools = traits.tools.length > 0;
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5">
-        {traits.skills.map((s) => {
-          const isHybrid =
-            traits.hybridSkillName !== undefined && s === traits.hybridSkillName;
-          return (
-            <span
-              key={s}
-              title={
-                isHybrid && traits.hybridSourceSkills
-                  ? `Synthesized from "${traits.hybridSourceSkills[0]}" + "${traits.hybridSourceSkills[1]}"`
-                  : undefined
-              }
-              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-xs text-zinc-200"
-            >
-              {isHybrid && (
-                <Sparkle
-                  size={10}
-                  weight="fill"
-                  className="text-accent-lineage"
-                />
-              )}
-              {s}
-            </span>
-          );
-        })}
-      </div>
-      {traits.hybridSkillName && traits.hybridSourceSkills && (
-        <p className="text-xs text-muted-foreground">
-          <span className="text-accent-lineage">{traits.hybridSkillName}</span>{" "}
-          was synthesized at breed time from{" "}
-          <span className="font-mono">{traits.hybridSourceSkills[0]}</span> +{" "}
-          <span className="font-mono">{traits.hybridSourceSkills[1]}</span>.
-        </p>
+    <div className="space-y-5">
+      {hasSkills && (
+        <div>
+          <div className="mb-2 text-xs uppercase tracking-wider text-white/55">
+            Skills
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {traits.skills.map((s) => {
+              const isHybrid =
+                traits.hybridSkillName !== undefined &&
+                s === traits.hybridSkillName;
+              return (
+                <span
+                  key={s}
+                  title={
+                    isHybrid && traits.hybridSourceSkills
+                      ? `Synthesized from "${traits.hybridSourceSkills[0]}" + "${traits.hybridSourceSkills[1]}"`
+                      : undefined
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-xs text-zinc-200"
+                >
+                  {isHybrid && (
+                    <Sparkle
+                      size={10}
+                      weight="fill"
+                      className="text-accent-lineage"
+                    />
+                  )}
+                  {s}
+                </span>
+              );
+            })}
+          </div>
+        </div>
       )}
-    </div>
-  );
-}
-
-function ToolsTab({ traits }: { traits: Traits }) {
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5">
-        {traits.tools.map((t) => {
-          const isSynth =
-            traits.synthesizedToolName !== undefined &&
-            t === traits.synthesizedToolName;
-          return (
-            <span
-              key={t}
-              title={
-                isSynth && traits.synthesizedToolSourceTools
-                  ? `Synthesized from ${traits.synthesizedToolSourceTools.join(", ")}`
-                  : undefined
-              }
-              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-xs text-zinc-200"
-            >
-              {isSynth && (
-                <Sparkle
-                  size={10}
-                  weight="fill"
-                  className="text-accent-lineage"
-                />
-              )}
-              {t}
-            </span>
-          );
-        })}
-      </div>
-      {traits.synthesizedToolName && traits.synthesizedToolSourceTools && (
+      {hasTools && (
+        <div>
+          <div className="mb-2 text-xs uppercase tracking-wider text-white/55">
+            Tools
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {traits.tools.map((t) => {
+              const isSynth =
+                traits.synthesizedToolName !== undefined &&
+                t === traits.synthesizedToolName;
+              return (
+                <span
+                  key={t}
+                  title={
+                    isSynth && traits.synthesizedToolSourceTools
+                      ? `Synthesized from ${traits.synthesizedToolSourceTools.join(", ")}`
+                      : undefined
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900/60 px-2.5 py-1 text-xs text-zinc-200"
+                >
+                  {isSynth && (
+                    <Sparkle
+                      size={10}
+                      weight="fill"
+                      className="text-accent-lineage"
+                    />
+                  )}
+                  {t}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {(traits.hybridSkillName || traits.synthesizedToolName) && (
         <p className="text-xs text-muted-foreground">
-          <span className="text-accent-lineage">
-            {traits.synthesizedToolName}
-          </span>{" "}
-          was synthesized at breed time from{" "}
-          <span className="font-mono">
-            {traits.synthesizedToolSourceTools.join(", ")}
-          </span>
-          .
+          <Sparkle
+            size={9}
+            weight="fill"
+            className="mr-1 inline text-accent-lineage"
+          />
+          Items marked with a sparkle were synthesized at breed time.
         </p>
       )}
     </div>
@@ -849,17 +875,19 @@ function EarnedSkillRow({ skill }: { skill: EarnedSkill }) {
         className="mt-0.5 shrink-0 text-amber-300"
       />
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 text-xs uppercase tracking-wider text-amber-200">
-          <span>{skill.skillName}</span>
+        <div className="flex flex-wrap items-center gap-x-2 text-sm text-amber-100">
+          <span className="font-medium">
+            {prettifyEarnedSkillName(skill.skillName)}
+          </span>
           <Link
             href={`/rounds/${skill.earnedInRound.toString()}`}
-            className="font-mono normal-case tracking-normal text-amber-300/70 hover:text-amber-200"
+            className="font-mono text-xs text-amber-300/70 transition-colors hover:text-amber-200"
           >
             · round #{skill.earnedInRound.toString()}
           </Link>
         </div>
         {skill.reasoning && (
-          <p className="mt-1 text-xs leading-snug text-amber-100/80">
+          <p className="mt-1 text-xs leading-snug text-amber-100/70">
             {skill.reasoning}
           </p>
         )}

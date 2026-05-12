@@ -3,6 +3,7 @@ import { createPublicClient, getContract, http } from "viem";
 import {
   agentGenomeAbi,
   GenomeStorage,
+  SOUL_FILE,
   zgGalileo,
   zgMainnet,
 } from "@progena/sdk";
@@ -62,8 +63,9 @@ export async function GET(_req: Request, { params }: Params) {
     const genomeData = await storage.downloadGenome(rootHash);
     const traits = buildTraitsFromGenome(genomeData);
     const traitsJson = serializeTraits(traits);
+    const soulFull = (genomeData.workspace[SOUL_FILE] ?? "").trim();
     return NextResponse.json(
-      { traits, traitsJson, rootHash },
+      { traits, traitsJson, rootHash, soulFull },
       {
         headers: {
           "cache-control": "public, max-age=300",
