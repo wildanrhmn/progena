@@ -15,7 +15,7 @@ import {
   Warning,
   X,
 } from "@phosphor-icons/react";
-import { useShard } from "@/hooks/use-shard";
+import { useShard, type MemoryShard } from "@/hooks/use-shard";
 import { ADDRESSES, EXPLORER_URL } from "@/lib/chain";
 import { formatRelative, formatTimestamp, shortHash } from "@/lib/format";
 
@@ -24,6 +24,7 @@ type Props = {
   rootHash: string | undefined;
   shardIndex: number | undefined;
   onClose: () => void;
+  previewShard?: MemoryShard;
 };
 
 function formatBps(bps: number): string {
@@ -39,8 +40,11 @@ function formatDelta(delta: number): { text: string; tone: string } {
   return { text, tone: "text-foreground" };
 }
 
-export function ShardModal({ open, rootHash, shardIndex, onClose }: Props) {
-  const { shard, isLoading, error } = useShard(open ? rootHash : undefined);
+export function ShardModal({ open, rootHash, shardIndex, onClose, previewShard }: Props) {
+  const fetched = useShard(open && !previewShard ? rootHash : undefined);
+  const shard = previewShard ?? fetched.shard;
+  const isLoading = previewShard ? false : fetched.isLoading;
+  const error = previewShard ? null : fetched.error;
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {

@@ -28,6 +28,7 @@ import { Panel, BracketBox } from "@/components/ui/panel";
 import { RoundStatusPill } from "./round-status-pill";
 import { RoundLifecycleTicker } from "./round-lifecycle-ticker";
 import { CommitDialog } from "./commit-dialog";
+import { EnterRoundDialog } from "./enter-round-dialog";
 import { RevealDialog } from "./reveal-dialog";
 import { useRoundQuestion } from "@/hooks/use-round-question";
 import { loadCommit } from "@/lib/commit";
@@ -59,6 +60,7 @@ export function RoundDetail({ roundId }: Props) {
   const names = useNames([...agentIds]);
 
   const [commitOpen, setCommitOpen] = useState(false);
+  const [enterOpen, setEnterOpen] = useState(false);
   const [revealAgent, setRevealAgent] = useState<AgentRow | undefined>();
   const [manualOverrideOpen, setManualOverrideOpen] = useState(false);
 
@@ -175,6 +177,40 @@ export function RoundDetail({ roundId }: Props) {
             <RoundLifecycleTicker round={round} />
           </div>
 
+          {viewer && round.status === "Open" && (
+            <div className="rounded-lg border border-accent-life/30 bg-accent-life/[0.04] p-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="mb-1 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-accent-life/90">
+                    <Lightning size={11} weight="fill" />
+                    Your turn
+                  </div>
+                  <div className="text-sm font-medium text-foreground">
+                    Send one of your agents into this round
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    The runtime materializes your agent's genome, runs 2-pass
+                    inference (OpenClaw reasoning → function-calling tools),
+                    returns a sealed commit hash, and you sign the tx that
+                    pays {formatEther(round.entryFee)} OG entry fee. After the
+                    commit deadline the daemon reveals using the saved nonce.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEnterOpen(true)}
+                  disabled={ownedAgents.length === 0}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-medium text-neutral-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Plus size={12} weight="bold" />
+                  {ownedAgents.length === 0
+                    ? "No agents to enter"
+                    : `Enter agent · ${formatEther(round.entryFee)} OG`}
+                </button>
+              </div>
+            </div>
+          )}
+
           {viewer && (
             <details
               open={manualOverrideOpen}
@@ -290,17 +326,32 @@ export function RoundDetail({ roundId }: Props) {
       </Panel>
 
       {viewer && round.status === "Open" && (
-        <CommitDialog
-          roundId={roundId}
-          entryFee={round.entryFee}
-          ownedAgents={ownedAgents}
-          open={commitOpen}
-          onClose={() => setCommitOpen(false)}
-          onSuccess={() => {
-            refetch();
-            refetchAgents();
-          }}
-        />
+        <>
+          <EnterRoundDialog
+            roundId={roundId}
+            entryFee={round.entryFee}
+            ownedAgents={ownedAgents}
+            question={question}
+            open={enterOpen}
+            ownerAddress={viewer}
+            onClose={() => setEnterOpen(false)}
+            onSuccess={() => {
+              refetch();
+              refetchAgents();
+            }}
+          />
+          <CommitDialog
+            roundId={roundId}
+            entryFee={round.entryFee}
+            ownedAgents={ownedAgents}
+            open={commitOpen}
+            onClose={() => setCommitOpen(false)}
+            onSuccess={() => {
+              refetch();
+              refetchAgents();
+            }}
+          />
+        </>
       )}
       {viewer && revealAgent && (
         <RevealDialog

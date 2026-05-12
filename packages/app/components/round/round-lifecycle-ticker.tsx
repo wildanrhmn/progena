@@ -11,7 +11,7 @@ const PHASES: Array<{
   id: RoundLifecyclePhase;
   label: string;
 }> = [
-  { id: "awaiting-commits", label: "Daemon committing" },
+  { id: "awaiting-commits", label: "Owners entering" },
   { id: "awaiting-reveals", label: "Daemon revealing" },
   { id: "awaiting-oracle", label: "Research oracle" },
   { id: "resolved", label: "Resolved" },

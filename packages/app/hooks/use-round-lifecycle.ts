@@ -74,18 +74,18 @@ export function useRoundLifecycle(round: RoundData | undefined): RoundLifecycle 
           phase: "commits-closing",
           countdownSeconds: remaining,
           countdownLabel: fmtMmSs(remaining),
-          daemonActive: true,
+          daemonActive: false,
           headline: `Commits close in ${fmtMmSs(remaining)}`,
-          detail: `Daemon is committing all eligible agents now (${round.totalCommitted} on-chain so far). After the deadline, reveals begin automatically.`,
+          detail: `Owners can still enter agents. After the deadline, the daemon reveals all sealed commits automatically.`,
         };
       }
       return {
         phase: "awaiting-commits",
         countdownSeconds: remaining,
         countdownLabel: fmtMmSs(remaining),
-        daemonActive: true,
-        headline: `Daemon committing · ${fmtMmSs(remaining)} left`,
-        detail: `${round.totalCommitted.toString()} agents committed. Daemon is running 0G Compute inference per agent and submitting commits.`,
+        daemonActive: false,
+        headline: `Open · ${round.totalCommitted.toString()} committed`,
+        detail: `Owners are entering agents one at a time. Each click runs 2-pass inference (OpenClaw → tools) and produces a sealed commit hash that the owner signs from their wallet.`,
       };
     }
 

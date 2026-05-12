@@ -8,7 +8,6 @@ import {
   type WalletClient,
 } from "viem";
 import {
-  agentGenomeAbi,
   predictionRoundAbi,
   type GenomeStorage,
   type StorageBackend,
@@ -16,7 +15,7 @@ import {
 import type { Logger } from "../lib/logger.js";
 import { RoundRunner } from "../round/round-runner.js";
 import { createRoundChain } from "../round/round-chain.js";
-import { createFileCommitStore, type CommitStore } from "../round/commit-store.js";
+import { type CommitStore } from "../round/commit-store.js";
 import type { InferenceClient } from "../round/inference.js";
 import type { AgenticInferenceClient } from "../round/agentic-inference.js";
 import {
@@ -27,7 +26,6 @@ import { memorizeRound } from "../round/memorize-round.js";
 import { promoteSkills } from "../round/promote-skills.js";
 import type { RoundCreatedEvent } from "../indexer/types.js";
 
-const COMMIT_STAGGER_MS = 3_000;
 const PHASE_BUFFER_MS = 8_000;
 const POLL_RECOVER_INTERVAL_MS = 30_000;
 
@@ -60,13 +58,12 @@ interface RoundJob {
   participants: bigint[];
   phase: RoundPhase;
   scheduledTimers: NodeJS.Timeout[];
-  commitPhasePromise?: Promise<void>;
   revealPhasePromise?: Promise<void>;
 }
 
 type RoundPhase =
   | "pending"
-  | "committing"
+  | "awaiting-commit"
   | "awaiting-reveal"
   | "revealing"
   | "awaiting-resolve"
@@ -80,7 +77,6 @@ export class RoundOrchestrator {
   private readonly opts: RoundOrchestratorOptions;
   private readonly jobs = new Map<string, RoundJob>();
   private readonly roundRunner: RoundRunner;
-  private readonly genomeContract: ReturnType<typeof buildGenomeContract>;
   private readonly predictionContract: ReturnType<typeof buildPredictionContract>;
   private recoveryTimer?: NodeJS.Timeout;
 
@@ -99,9 +95,8 @@ export class RoundOrchestrator {
       useOpenClawAgent: opts.useOpenClawAgent,
       openclawBin: opts.openclawBin,
       commitStore: opts.commitStore,
-      logger: opts.logger?.child?.({ component: "round-runner-auto" }),
+      logger: opts.logger?.child?.({ component: "round-runner-reveal" }),
     });
-    this.genomeContract = buildGenomeContract(opts.agentGenomeAddress, opts.publicClient);
     this.predictionContract = buildPredictionContract(
       opts.predictionRoundAddress,
       opts.publicClient
@@ -133,6 +128,14 @@ export class RoundOrchestrator {
       commitDeadline: Number(event.commitDeadline),
       revealDeadline: Number(event.revealDeadline),
     });
+  }
+
+  async prepareCommit(
+    roundId: bigint,
+    agentId: bigint,
+    question: string
+  ) {
+    return this.roundRunner.prepareCommitForAgent(roundId, agentId, question);
   }
 
   private async recoverPendingRounds(): Promise<void> {
@@ -193,10 +196,8 @@ export class RoundOrchestrator {
     const nowSec = Math.floor(Date.now() / 1000);
 
     if (nowSec <= job.commitDeadline) {
-      log?.info?.("scheduling commit phase immediately");
-      job.commitPhasePromise = this.runCommitPhase(job).catch((err) => {
-        log?.error?.("commit phase failed", { error: err instanceof Error ? err.message : String(err) });
-      });
+      log?.info?.("waiting for owner-signed commits; reveal+resolve scheduled");
+      job.phase = "awaiting-commit";
       this.scheduleReveal(job);
       this.scheduleResolve(job);
     } else if (nowSec <= job.revealDeadline) {
@@ -221,9 +222,6 @@ export class RoundOrchestrator {
     const delay = Math.max(0, fireAt - nowMs);
     log?.info?.("reveal scheduled", { in: `${Math.round(delay / 1000)}s` });
     const timer = setTimeout(async () => {
-      if (job.commitPhasePromise) {
-        await job.commitPhasePromise.catch(() => undefined);
-      }
       job.revealPhasePromise = this.runRevealPhase(job).catch((err) => {
         log?.error?.("reveal phase failed", { error: err instanceof Error ? err.message : String(err) });
       });
@@ -249,68 +247,6 @@ export class RoundOrchestrator {
       });
     }, delay);
     job.scheduledTimers.push(timer);
-  }
-
-  private async runCommitPhase(job: RoundJob): Promise<void> {
-    const log = this.opts.logger?.child?.({
-      component: "round-orchestrator",
-      roundId: String(job.roundId),
-    });
-    job.phase = "committing";
-
-    let lookup = await this.opts.questionLookup(job.roundId);
-    if (!lookup) {
-      log?.info?.("no question text yet, polling RoundMetadata…");
-      for (let attempt = 0; attempt < 12; attempt++) {
-        await sleep(5_000);
-        lookup = await this.opts.questionLookup(job.roundId);
-        if (lookup) {
-          log?.info?.("question text appeared", { afterMs: (attempt + 1) * 5000 });
-          break;
-        }
-      }
-    }
-    if (!lookup) {
-      log?.warn?.("no question text after 60s; skipping commits");
-      job.phase = "awaiting-reveal";
-      return;
-    }
-
-    const eligibleAgents = await this.discoverEligibleAgents();
-    log?.info?.("commit phase starting", { eligible: eligibleAgents.length });
-
-    const PER_COMMIT_BUDGET_S = 45;
-
-    for (const agentId of eligibleAgents) {
-      const nowSec = Math.floor(Date.now() / 1000);
-      if (nowSec + PER_COMMIT_BUDGET_S > job.commitDeadline) {
-        log?.warn?.("commit deadline too close, stopping commit phase", {
-          remainingS: job.commitDeadline - nowSec,
-          skippedAgents: eligibleAgents.length - job.participants.length,
-        });
-        break;
-      }
-      try {
-        const existing = await this.predictionContract.read.commitmentOf([job.roundId, agentId]);
-        if (existing.exists) {
-          log?.info?.("skipping (already committed)", { agentId: String(agentId) });
-          job.participants.push(agentId);
-          continue;
-        }
-        log?.info?.("committing for agent", { agentId: String(agentId) });
-        await this.roundRunner.commitForAgent(job.roundId, agentId, lookup.question);
-        job.participants.push(agentId);
-      } catch (err) {
-        log?.warn?.("commit failed for agent (continuing)", {
-          agentId: String(agentId),
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      await sleep(COMMIT_STAGGER_MS);
-    }
-
-    log?.info?.("commit phase complete", { committed: job.participants.length });
-    job.phase = "awaiting-reveal";
   }
 
   private async runRevealPhase(job: RoundJob): Promise<void> {
@@ -556,34 +492,10 @@ export class RoundOrchestrator {
     }
   }
 
-  private async discoverEligibleAgents(): Promise<bigint[]> {
-    const totalMinted = (await this.genomeContract.read.totalMinted()) as bigint;
-    const eligible: bigint[] = [];
-    for (let id = 1n; id <= totalMinted; id++) {
-      try {
-        const owner = (await this.genomeContract.read.ownerOf([id])) as Address;
-        if (owner.toLowerCase() !== this.opts.account.address.toLowerCase()) continue;
-        const finalized = (await this.genomeContract.read.isFinalized([id])) as boolean;
-        if (!finalized) continue;
-        eligible.push(id);
-      } catch {
-        /* */
-      }
-    }
-    return eligible;
-  }
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function buildGenomeContract(address: Address, publicClient: PublicClient) {
-  return getContract({
-    address,
-    abi: agentGenomeAbi,
-    client: { public: publicClient },
-  });
 }
 
 function buildPredictionContract(address: Address, publicClient: PublicClient) {

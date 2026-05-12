@@ -24,17 +24,21 @@ export interface RoundRunnerOptions {
   now?: () => number;
 }
 
-export interface CommitForAgentResult {
+export interface PrepareCommitResult {
   agentId: bigint;
   prediction: number;
   commitHash: Hex;
-  commitTxHash: Hex;
   nonce: Hex;
   rawText: string;
+  reasoningPreview: string;
   toolCalls?: ToolCallRecord[];
   inferenceModel?: string;
   inferenceIterations?: number;
   openclawReasoning?: string;
+}
+
+export interface CommitForAgentResult extends PrepareCommitResult {
+  commitTxHash: Hex;
 }
 
 export interface RevealForAgentResult {
@@ -46,11 +50,11 @@ export interface RevealForAgentResult {
 export class RoundRunner {
   constructor(private readonly opts: RoundRunnerOptions) {}
 
-  async commitForAgent(
+  async prepareCommitForAgent(
     roundId: bigint,
     agentId: bigint,
     question: string
-  ): Promise<CommitForAgentResult> {
+  ): Promise<PrepareCommitResult> {
     const log = this.opts.logger?.child({
       component: "round-runner",
       roundId: String(roundId),
@@ -160,7 +164,6 @@ export class RoundRunner {
     const nonce = generateNonce();
     const commitHash = buildCommitHash(roundId, agentId, prediction, nonce);
 
-    const entryFee = await this.opts.chain.entryFeeOf(roundId);
     const reasoningPreview =
       rawText.length > 320 ? `${rawText.slice(0, 320)}…` : rawText;
 
@@ -180,34 +183,58 @@ export class RoundRunner {
     };
     await this.opts.commitStore.save(stored);
 
-    log?.info("submitting commit", {
+    log?.info("prepared commit", {
       prediction,
       commitHash,
-      entryFee: String(entryFee),
       toolCallCount: toolCalls?.length ?? 0,
     });
-    const commitTxHash = await this.opts.chain.commitPrediction(
-      roundId,
-      agentId,
-      commitHash,
-      entryFee
-    );
-    stored.commitTxHash = commitTxHash;
-    await this.opts.commitStore.save(stored);
-
-    log?.info("committed", { commitTxHash });
     return {
       agentId,
       prediction,
       commitHash,
-      commitTxHash,
       nonce,
       rawText,
+      reasoningPreview,
       toolCalls,
       openclawReasoning,
       inferenceModel,
       inferenceIterations,
     };
+  }
+
+  async commitForAgent(
+    roundId: bigint,
+    agentId: bigint,
+    question: string
+  ): Promise<CommitForAgentResult> {
+    const log = this.opts.logger?.child({
+      component: "round-runner",
+      roundId: String(roundId),
+      agentId: String(agentId),
+    });
+
+    const prep = await this.prepareCommitForAgent(roundId, agentId, question);
+    const entryFee = await this.opts.chain.entryFeeOf(roundId);
+
+    log?.info("submitting commit", {
+      prediction: prep.prediction,
+      commitHash: prep.commitHash,
+      entryFee: String(entryFee),
+    });
+    const commitTxHash = await this.opts.chain.commitPrediction(
+      roundId,
+      agentId,
+      prep.commitHash,
+      entryFee
+    );
+    const stored = await this.opts.commitStore.get(roundId, agentId);
+    if (stored) {
+      stored.commitTxHash = commitTxHash;
+      await this.opts.commitStore.save(stored);
+    }
+
+    log?.info("committed", { commitTxHash });
+    return { ...prep, commitTxHash };
   }
 
   async revealForAgent(

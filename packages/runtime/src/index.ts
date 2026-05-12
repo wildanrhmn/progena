@@ -27,6 +27,9 @@ import { createAgenticInferenceClient } from "./round/agentic-inference.js";
 import { buildResolveContext } from "./round/resolve-round.js";
 import { buildDefaultToolRegistry } from "./tools/index.js";
 import { createFileCommitStore } from "./round/commit-store.js";
+import { PrepareCommitServer } from "./server/prepare-commit-server.js";
+import { RoundRunner } from "./round/round-runner.js";
+import { createRoundChain } from "./round/round-chain.js";
 
 function openclawAvailable(bin = "openclaw"): boolean {
   try {
@@ -163,6 +166,45 @@ async function main(): Promise<void> {
     });
   }
 
+  const questionLookup = async (roundId: bigint) => {
+    try {
+      const text = (await roundMetaContract.read.questionOf([roundId])) as string;
+      if (!text || text.length === 0) return null;
+      const data = await publicClient.readContract({
+        address: config.addresses.predictionRound,
+        abi: [
+          {
+            type: "function",
+            name: "roundOf",
+            stateMutability: "view",
+            inputs: [{ type: "uint256" }],
+            outputs: [
+              {
+                type: "tuple",
+                components: [
+                  { name: "questionHash", type: "bytes32" },
+                  { name: "commitDeadline", type: "uint64" },
+                  { name: "revealDeadline", type: "uint64" },
+                  { name: "entryFee", type: "uint256" },
+                  { name: "totalPool", type: "uint256" },
+                  { name: "totalCommitted", type: "uint256" },
+                  { name: "totalRevealed", type: "uint256" },
+                  { name: "outcome", type: "uint16" },
+                  { name: "resolved", type: "bool" },
+                ],
+              },
+            ],
+          },
+        ] as const,
+        functionName: "roundOf",
+        args: [roundId],
+      });
+      return { question: text, questionHash: data.questionHash as `0x${string}` };
+    } catch {
+      return null;
+    }
+  };
+
   const roundOrchestrator = new RoundOrchestrator({
     publicClient,
     walletClient,
@@ -180,46 +222,34 @@ async function main(): Promise<void> {
     agentMemoryAddress: config.addresses.agentMemory,
     agentMetadataAddress: config.addresses.agentMetadata,
     useOpenClawAgent,
-    questionLookup: async (roundId) => {
-      try {
-        const text = (await roundMetaContract.read.questionOf([roundId])) as string;
-        if (!text || text.length === 0) return null;
-        const data = await publicClient.readContract({
-          address: config.addresses.predictionRound,
-          abi: [
-            {
-              type: "function",
-              name: "roundOf",
-              stateMutability: "view",
-              inputs: [{ type: "uint256" }],
-              outputs: [
-                {
-                  type: "tuple",
-                  components: [
-                    { name: "questionHash", type: "bytes32" },
-                    { name: "commitDeadline", type: "uint64" },
-                    { name: "revealDeadline", type: "uint64" },
-                    { name: "entryFee", type: "uint256" },
-                    { name: "totalPool", type: "uint256" },
-                    { name: "totalCommitted", type: "uint256" },
-                    { name: "totalRevealed", type: "uint256" },
-                    { name: "outcome", type: "uint16" },
-                    { name: "resolved", type: "bool" },
-                  ],
-                },
-              ],
-            },
-          ] as const,
-          functionName: "roundOf",
-          args: [roundId],
-        });
-        return { question: text, questionHash: data.questionHash as `0x${string}` };
-      } catch {
-        return null;
-      }
-    },
+    questionLookup,
     logger,
   });
+
+  const prepareCommitRunner = new RoundRunner({
+    chain: createRoundChain({
+      agentGenomeAddress: config.addresses.agentGenome,
+      predictionRoundAddress: config.addresses.predictionRound,
+      publicClient,
+      walletClient,
+    }),
+    storage: genomeStorage,
+    inference: inferenceClient,
+    agenticInference,
+    useOpenClawAgent,
+    commitStore,
+    logger: logger.child({ component: "round-runner-prepare" }),
+  });
+
+  const prepareCommitPort = Number(process.env.PREPARE_COMMIT_PORT ?? 8788);
+  const prepareCommitServer = new PrepareCommitServer({
+    port: prepareCommitPort,
+    host: process.env.PREPARE_COMMIT_HOST ?? "0.0.0.0",
+    roundRunner: prepareCommitRunner,
+    questionLookup,
+    logger,
+  });
+  prepareCommitServer.start();
 
   await roundOrchestrator.start();
   logger.info("round orchestrator started (autonomous flow active)");
@@ -266,6 +296,7 @@ async function main(): Promise<void> {
     stopBreeding();
     stopRound();
     roundOrchestrator.stop();
+    prepareCommitServer.stop();
     setTimeout(() => process.exit(0), 250);
   };
   process.on("SIGINT", () => shutdown("SIGINT"));
