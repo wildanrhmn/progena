@@ -48,6 +48,8 @@ export interface RoundOrchestratorOptions {
   agentMemoryAddress: Address;
   agentMetadataAddress: Address;
   questionLookup: (roundId: bigint) => Promise<{ question: string; questionHash: Hex } | null>;
+  useOpenClawAgent?: boolean;
+  openclawBin?: string;
   logger?: Logger;
 }
 
@@ -94,6 +96,8 @@ export class RoundOrchestrator {
       storage: opts.genomeStorage,
       inference: opts.inference,
       agenticInference: opts.agenticInference,
+      useOpenClawAgent: opts.useOpenClawAgent,
+      openclawBin: opts.openclawBin,
       commitStore: opts.commitStore,
       logger: opts.logger?.child?.({ component: "round-runner-auto" }),
     });

@@ -157,6 +157,14 @@ async function main(): Promise<void> {
     client: { public: publicClient },
   });
 
+  const useOpenClawAgent =
+    process.env.OPENCLAW_AGENT_MODE !== "off" && openclawAvailable();
+  if (useOpenClawAgent) {
+    logger.info("OpenClaw agent-mode enabled for tool-less commits", {
+      hint: "agents with no resolvable tools will use `openclaw agent` in a materialized workspace",
+    });
+  }
+
   const roundOrchestrator = new RoundOrchestrator({
     publicClient,
     walletClient,
@@ -173,6 +181,7 @@ async function main(): Promise<void> {
     agentGenomeAddress: config.addresses.agentGenome,
     agentMemoryAddress: config.addresses.agentMemory,
     agentMetadataAddress: config.addresses.agentMetadata,
+    useOpenClawAgent,
     questionLookup: async (roundId) => {
       try {
         const text = (await roundMetaContract.read.questionOf([roundId])) as string;

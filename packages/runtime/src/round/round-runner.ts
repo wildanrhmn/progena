@@ -10,12 +10,20 @@ import type { AgenticInferenceClient } from "./agentic-inference.js";
 import { resolveToolList } from "../tools/alias.js";
 import type { ToolCallRecord } from "../tools/types.js";
 import type { RoundChain } from "./round-chain.js";
+import { OpenClawAgent } from "../openclaw/openclaw-agent.js";
 
 export interface RoundRunnerOptions {
   chain: RoundChain;
   storage: GenomeStorage;
   inference: InferenceClient;
   agenticInference?: AgenticInferenceClient;
+  /**
+   * If true, route commits through OpenClawAgent (workspace-materialized
+   * agent mode) when the agent has no resolvable tools. When the agent has
+   * tools, we still use the function-calling path so tools actually execute.
+   */
+  useOpenClawAgent?: boolean;
+  openclawBin?: string;
   commitStore: CommitStore;
   logger?: Logger;
   now?: () => number;
@@ -71,7 +79,7 @@ export class RoundRunner {
       : [];
 
     if (this.opts.agenticInference && allowedTools.length > 0) {
-      log?.info("running agentic inference", {
+      log?.info("running agentic inference (function-calling tools)", {
         skills: context.skillNames,
         tools: allowedTools,
       });
@@ -89,6 +97,27 @@ export class RoundRunner {
       toolCalls = agenticResult.toolCalls;
       inferenceModel = agenticResult.model;
       inferenceIterations = agenticResult.iterations;
+    } else if (this.opts.useOpenClawAgent) {
+      // Real OpenClaw orchestration: materialize the genome workspace +
+      // spawn `openclaw agent --message <q>`. The OpenClaw runtime loads
+      // SOUL.md as personality and exposes skills/* via its workspace.
+      log?.info("running OpenClaw agent (workspace-materialized)", {
+        skills: context.skillNames,
+      });
+      const openclawAgent = new OpenClawAgent({
+        genome,
+        openclawBin: this.opts.openclawBin,
+        thinking: "high",
+        logger: log,
+      });
+      try {
+        const result = await openclawAgent.ask(`${userPrompt}\n\n(Round ${roundId} as OpenClaw agent #${agentId})`);
+        rawText = result.text;
+        prediction = extractPrediction(rawText);
+        inferenceModel = "openclaw/agent-mode";
+      } finally {
+        await openclawAgent.dispose();
+      }
     } else {
       log?.info("running single-prompt inference (no tools available)", {
         skills: context.skillNames,

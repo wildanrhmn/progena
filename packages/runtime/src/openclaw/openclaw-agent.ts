@@ -51,7 +51,8 @@ export class OpenClawAgent {
   async ask(message: string): Promise<AskResult> {
     const ws = await this.ensureReady();
     const bin = this.opts.openclawBin ?? "openclaw";
-    const args = ["infer", "model", "run", "--prompt", message];
+    const thinking = this.opts.thinking ?? "high";
+    const args = ["agent", "--message", message, "--thinking", thinking];
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
@@ -60,9 +61,10 @@ export class OpenClawAgent {
       ...this.opts.envOverrides,
     };
 
-    this.opts.logger?.info?.("invoking openclaw", {
+    this.opts.logger?.info?.("invoking openclaw agent", {
       bin,
       workspace: ws.root,
+      thinking,
     });
 
     const spawn = this.opts.spawnFn ?? defaultSpawnFn;
