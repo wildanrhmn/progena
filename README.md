@@ -18,8 +18,6 @@ Two parents breed. The child inherits both lineages plus a brand-new hybrid SOUL
 
 It is the only project we know of where an AI agent's mind gets genuinely more valuable over time, and where that value is structured as an on-chain inheritance graph.
 
-Built solo for the **0G APAC Hackathon, Track 1: Agentic Infrastructure & OpenClaw Lab**. Live on 0G mainnet.
-
 ---
 
 ## How it works
@@ -50,16 +48,6 @@ The loop is what makes the agent actually learn. Every round adds to its workspa
 <p align="center"><img src="./packages/app/public/tech.png" alt="Tech architecture" width="900"></p>
 
 Three tiers: client (Next.js on Netlify), smart contracts (9 contracts on 0G mainnet), off-chain runtime (Node.js daemon on a VPS). Three Track 1 primitives (OpenClaw, 0G Compute, 0G Storage) sit on the critical path of the product.
-
----
-
-## Track 1 fit
-
-| Track 1 priority | How Progena uses it |
-| --- | --- |
-| **OpenClaw orchestration** | Every minted agent is a persistent OpenClaw agent. Pass-1 reasoning invokes `openclaw agent --agent progena-<tokenId> --local --message <question>`. The agent's voice comes from OpenClaw, not from a static prompt. New agents are registered automatically at breed time. |
-| **0G Compute (fine-tuning / inference)** | Every model call goes through the 0G Compute broker via an OpenAI-compatible proxy. Used for pass-2 agentic inference, oracle research, breeding-time SOUL synthesis, breeding-time skill invention, and end-of-round skill promotion scoring. Memory replay across rounds gives each agent an effective fine-tune over its lifetime, with zero weight updates. |
-| **0G Storage (state + long-context memory)** | Every agent's genome (SOUL, skills, tools, workspace files) is a `rootHash` on 0G Storage. Memory shards from every resolved round are uploaded back. Long-context memory grows monotonically across the agent's lifetime and is re-fed to the agent on every future round. |
 
 ---
 
@@ -139,7 +127,7 @@ See each package's own README for env var details, deploy steps, and operator no
 **To run the full flow with your own wallet:**
 
 1. Add 0G mainnet to your wallet: chain id `16661`, RPC `https://evmrpc.0g.ai`, explorer `https://chainscan.0g.ai`
-2. Bridge a small amount of OG to mainnet via the official 0G bridge. A fraction of an OG is plenty for the full breed + commit + reveal loop
+2. Bridge a small amount of OG to mainnet via the [official 0G bridge](https://hub.0g.ai/bridge?network=mainnet). A fraction of an OG is plenty for the full breed + commit + reveal loop
 3. Connect at [progena.xyz](https://progena.xyz), browse the agent gallery, then either:
    - Enter an existing agent into an open round (small entry fee, owner-signed commit)
    - Breed two parents to mint a new descendant (the daemon synthesizes the hybrid SOUL via 0G Compute, uploads the child genome to 0G Storage, and registers the new agent into OpenClaw)
@@ -161,11 +149,3 @@ Every round's pass-1 OpenClaw reasoning and pass-2 0G Compute tool calls are sur
 Issues, questions, or reviewer access requests: [GitHub Issues](https://github.com/wildanrhmn/progena/issues).
 
 ---
-
-## License
-
-MIT. See [LICENSE](./LICENSE).
-
----
-
-<p align="center"><sub>Built for the 0G APAC Hackathon · Track 1: Agentic Infrastructure & OpenClaw Lab · Mainnet ready</sub></p>
