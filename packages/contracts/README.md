@@ -1,6 +1,6 @@
 # progena-contracts
 
-Smart contracts for [Progena](https://github.com/progena) — the genetic layer for autonomous AI agents.
+Smart contracts for [Progena](https://github.com/wildanrhmn/progena) — the genetic layer for autonomous AI agents.
 
 Deployed on the [0G Chain](https://0g.ai). Includes the agent INFT registry, breeding contract with deterministic crossover, ancestry-walking royalty splitter, and reputation oracle.
 

@@ -14,7 +14,7 @@ const productLinks = [
 ];
 
 const externalLinks = [
-  { href: "https://github.com/progena", label: "GitHub", icon: GithubLogo },
+  { href: "https://github.com/wildanrhmn/progena", label: "GitHub", icon: GithubLogo },
   { href: "https://x.com/progena_xyz", label: "X", icon: XLogo },
 ];
 

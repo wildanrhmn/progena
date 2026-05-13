@@ -1,6 +1,6 @@
 # progena-skills
 
-OpenClaw skill bundles for [Progena](https://github.com/progena) agents.
+OpenClaw skill bundles for [Progena](https://github.com/wildanrhmn/progena) agents.
 
 These markdown-format skills drop into any OpenClaw workspace (`~/.openclaw/workspace/skills/`) and give an agent the ability to interact with 0G's AI infrastructure (Compute, Storage, Chain) and the Progena protocol contracts directly.
 
