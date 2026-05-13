@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import type { Address } from "viem";
 import { useOwnedAgents } from "@/hooks/use-owned-agents";
 import { useOwnedEarnedSkills } from "@/hooks/use-owned-earned-skills";
-import { useNames, nameOrId } from "@/hooks/use-names";
 import { dispatchEarnedSkillToast } from "./earned-skill-toast";
 
 const STORAGE_KEY = "progena:known-earned-skills:v1";
@@ -41,10 +40,16 @@ export function EarnedSkillWatcher() {
     | undefined;
 
   const { agents } = useOwnedAgents(owner);
-  const ownedTokenIds = agents.map((a) => a.id);
+  const ownedTokenIds = useMemo(() => agents.map((a) => a.id), [agents]);
+  const nameByTokenId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of agents) {
+      if (a.name && a.name.length > 0) map.set(a.id.toString(), a.name);
+    }
+    return map;
+  }, [agents]);
 
   const { rows } = useOwnedEarnedSkills(ownedTokenIds);
-  const names = useNames(ownedTokenIds);
 
   const baselineLoaded = useRef<string | null>(null);
 
@@ -76,7 +81,11 @@ export function EarnedSkillWatcher() {
       );
 
       if (newOnes.length > 0) {
-        const agentName = nameOrId(row.tokenId, names);
+        const resolvedName = nameByTokenId.get(key);
+        if (resolvedName === undefined && nameByTokenId.size === 0) {
+          continue;
+        }
+        const agentName = resolvedName ?? `Agent #${key}`;
         for (const skill of newOnes) {
           dispatchEarnedSkillToast({
             agentTokenId: row.tokenId.toString(),
@@ -96,7 +105,7 @@ export function EarnedSkillWatcher() {
 
     if (updated) writeSnapshot(knownKey, nextSnapshot);
     baselineLoaded.current = knownKey;
-  }, [owner, rows, names]);
+  }, [owner, rows, nameByTokenId]);
 
   return null;
 }
