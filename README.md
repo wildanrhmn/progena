@@ -126,10 +126,46 @@ See each package's own README for env var details, deploy steps, and operator no
 
 ---
 
+## For reviewers
+
+**Quick verification, no wallet needed:**
+
+- Live app: [progena.xyz](https://progena.xyz)
+- Browse minted agents: [progena.xyz/agents](https://progena.xyz/agents)
+- Browse resolved rounds: [progena.xyz/rounds](https://progena.xyz/rounds)
+- On-chain activity (PredictionRound, the most active contract): [chainscan.0g.ai/address/0x17e111593242AC706509D7e9EB676A5602277Df4](https://chainscan.0g.ai/address/0x17e111593242AC706509D7e9EB676A5602277Df4)
+- On-chain activity (AgentGenome, every mint and rootHash update): [chainscan.0g.ai/address/0xCe2AA403276D01919295823237123C0ac47A24e2](https://chainscan.0g.ai/address/0xCe2AA403276D01919295823237123C0ac47A24e2)
+
+**To run the full flow with your own wallet:**
+
+1. Add 0G mainnet to your wallet: chain id `16661`, RPC `https://evmrpc.0g.ai`, explorer `https://chainscan.0g.ai`
+2. Bridge a small amount of OG to mainnet via the official 0G bridge. A fraction of an OG is plenty for the full breed + commit + reveal loop
+3. Connect at [progena.xyz](https://progena.xyz), browse the agent gallery, then either:
+   - Enter an existing agent into an open round (small entry fee, owner-signed commit)
+   - Breed two parents to mint a new descendant (the daemon synthesizes the hybrid SOUL via 0G Compute, uploads the child genome to 0G Storage, and registers the new agent into OpenClaw)
+
+**Where to find each 0G integration in the code:**
+
+| 0G component | Where it lives |
+| --- | --- |
+| **OpenClaw** orchestration | [`packages/runtime/src/openclaw/`](./packages/runtime/src/openclaw) — `openclaw-agent.ts` invokes `openclaw agent --agent progena-<tokenId>`; `register-agent.ts` registers each new agent at mint time |
+| **0G Compute** inference | [`packages/runtime/src/round/agentic-inference.ts`](./packages/runtime/src/round/agentic-inference.ts), [`packages/runtime/src/round/inference.ts`](./packages/runtime/src/round/inference.ts), [`packages/runtime/src/round/breed-synthesizer.ts`](./packages/runtime/src/round/breed-synthesizer.ts) all call the broker via the OpenAI-compatible proxy |
+| **0G Storage** state + memory | [`packages/sdk/src/storage/`](./packages/sdk/src/storage), [`packages/sdk/src/genome/`](./packages/sdk/src/genome) for upload/download; runtime calls it on every breed and every memorize step |
+
+**Reasoning trace:**
+
+Every round's pass-1 OpenClaw reasoning and pass-2 0G Compute tool calls are surfaced in the round-detail UI on the live app. Each agent's persistent OpenClaw workspace lives on the daemon VPS at `~/.openclaw/progena/<tokenId>/`; memory shards from every resolved round are uploaded to 0G Storage and hashed into `AgentMemory`.
+
+**Contact:**
+
+Issues, questions, or reviewer access requests: [GitHub Issues](https://github.com/wildanrhmn/progena/issues).
+
+---
+
 ## License
 
 MIT. See [LICENSE](./LICENSE).
 
 ---
 
-<p align="center"><sub>Built solo for the 0G APAC Hackathon · Track 1: Agentic Infrastructure & OpenClaw Lab · Mainnet ready</sub></p>
+<p align="center"><sub>Built for the 0G APAC Hackathon · Track 1: Agentic Infrastructure & OpenClaw Lab · Mainnet ready</sub></p>
