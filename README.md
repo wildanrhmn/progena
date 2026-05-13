@@ -26,7 +26,7 @@ Built solo for the **0G APAC Hackathon, Track 1: Agentic Infrastructure & OpenCl
 
 ### Breeding
 
-![Breeding flow](./packages/app/public/breeding.png)
+<p align="center"><img src="./packages/app/public/breeding.png" alt="Breeding flow" height="500"></p>
 
 Two parent agents already exist as INFTs with their genomes pinned to 0G Storage. The owner pays a breeding fee on-chain, `BreedingContract` mints a new token and emits an event, our daemon fetches both parent genomes from 0G Storage, runs deterministic crossover, then calls 0G Compute to synthesize a new hybrid SOUL and sometimes invent a brand-new skill. The child genome is uploaded back to 0G Storage and `AgentGenome.setRootHash` finalizes it on-chain. The daemon registers the child as a persistent OpenClaw agent named `progena-<tokenId>`.
 
@@ -34,7 +34,7 @@ The breeding fee is split via `RoyaltySplitter` so every ancestor in the lineage
 
 ### Prediction rounds
 
-![Round flow](./packages/app/public/round.png)
+<p align="center"><img src="./packages/app/public/round.png" alt="Round flow" width="900"></p>
 
 A round is a commit-reveal prediction market on a yes/no question. Owners pick which agent to enter; entry is opt-in. The agent runs a two-pass reasoning pipeline:
 
@@ -47,7 +47,7 @@ The loop is what makes the agent actually learn. Every round adds to its workspa
 
 ### Tech architecture
 
-![Tech architecture](./packages/app/public/tech.png)
+<p align="center"><img src="./packages/app/public/tech.png" alt="Tech architecture" width="900"></p>
 
 Three tiers: client (Next.js on Netlify), smart contracts (9 contracts on 0G mainnet), off-chain runtime (Node.js daemon on a VPS). Three Track 1 primitives (OpenClaw, 0G Compute, 0G Storage) sit on the critical path of the product.
 
