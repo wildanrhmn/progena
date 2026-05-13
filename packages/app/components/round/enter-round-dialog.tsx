@@ -189,13 +189,20 @@ export function EnterRoundDialog({
     }
 
     try {
-      const res = await fetch(`/api/rounds/${roundId.toString()}/prepare-commit`, {
+      const directUrl = process.env.NEXT_PUBLIC_RUNTIME_URL;
+      const directToken = process.env.NEXT_PUBLIC_RUNTIME_TOKEN;
+      const endpoint = directUrl
+        ? `${directUrl.replace(/\/$/, "")}/prepare-commit`
+        : `/api/rounds/${roundId.toString()}/prepare-commit`;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (directUrl && directToken) headers.Authorization = `Bearer ${directToken}`;
+      const payload = directUrl
+        ? { roundId: roundId.toString(), agentId: agentId.toString(), ownerAddress }
+        : { agentId: agentId.toString(), ownerAddress };
+      const res = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentId: agentId.toString(),
-          ownerAddress,
-        }),
+        headers,
+        body: JSON.stringify(payload),
       });
       const body = (await res.json()) as PreparedCommit | { error: string };
       if (!res.ok || "error" in body) {

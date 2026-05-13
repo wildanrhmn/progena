@@ -53,7 +53,11 @@ export function AgentDetail({ agentId }: Props) {
   const [openShard, setOpenShard] = useState<{ hash: string; index: number } | undefined>();
 
   const lineageIds = agent
-    ? [agent.parentA, agent.parentB, ...descendants.map((d) => d.otherParent)]
+    ? [
+        agent.parentA,
+        agent.parentB,
+        ...descendants.flatMap((d) => [d.id, d.otherParent]),
+      ]
     : [];
   const names = useNames(lineageIds);
 
