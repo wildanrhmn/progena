@@ -87,7 +87,7 @@ export class RoundRunner {
       const openclawAgent = new OpenClawAgent({
         genome,
         openclawBin: this.opts.openclawBin,
-        thinking: "high",
+        thinking: "minimal",
         logger: log,
         agentName: agentNameForToken(agentId),
       });
@@ -95,7 +95,13 @@ export class RoundRunner {
         const passOnePrompt = [
           `Question: ${question}`,
           ``,
-          `Think through this question from your unique perspective, informed by your SOUL.md, your skills, and any past lessons. Output ONLY your reasoning paragraph(s). DO NOT output a PREDICTION line yet — the next pass will gather external evidence via your tools and produce the final prediction.`,
+          `Answer this question directly. State which way you lean (yes or no) and the 1-2 specific reasons that drive your answer.`,
+          ``,
+          `Rules:`,
+          `- 2-3 sentences max.`,
+          `- Do NOT describe yourself, your personality, your traits, or your SOUL. Just answer.`,
+          `- Do NOT output a numeric prediction yet. Just the verbal lean and the why.`,
+          `- Skip preamble. Start with the lean.`,
         ].join("\n");
         const result = await openclawAgent.ask(passOnePrompt);
         const reasoning = result.text.trim();
@@ -136,8 +142,8 @@ export class RoundRunner {
         userPrompt,
         toolNames: allowedTools,
         temperature: 0.4,
-        maxTokens: 1200,
-        maxIterations: 6,
+        maxTokens: 900,
+        maxIterations: 4,
         context: { logger: log, agentId, roundId },
       });
       rawText = agenticResult.finalText;

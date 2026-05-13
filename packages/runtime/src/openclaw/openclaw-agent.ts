@@ -20,7 +20,7 @@ export interface OpenClawAgentOptions {
   recentMemoryLessons?: string[];
   workspaceRoot?: string;
   openclawBin?: string;
-  thinking?: "low" | "medium" | "high";
+  thinking?: "minimal" | "low" | "medium" | "high";
   envOverrides?: Record<string, string>;
   spawnFn?: SpawnFn;
   logger?: Logger;
