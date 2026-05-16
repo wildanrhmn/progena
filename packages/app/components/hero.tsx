@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Pulse } from "@phosphor-icons/react";
+import { ArrowRight, Pulse } from "@phosphor-icons/react";
 import { NETWORK_NAME, chain } from "@/lib/chain";
-import { LiquidCtaButton } from "@/components/ui/liquid-cta-button";
 
 export function Hero() {
   return (
@@ -58,8 +57,34 @@ export function Hero() {
           transition={{ duration: 0.55, delay: 0.25 }}
           className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:gap-4"
         >
-          <Link href="/agents" aria-label="Browse agents">
-            <LiquidCtaButton>Browse agents</LiquidCtaButton>
+          <Link
+            href="/agents"
+            aria-label="Browse agents"
+            className="group relative inline-flex overflow-hidden rounded-full border border-zinc-700 bg-zinc-900 transition-transform duration-300 hover:scale-[1.03]"
+          >
+            <span className="relative z-10 inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-zinc-100">
+              Browse agents
+              <ArrowRight
+                size={16}
+                weight="bold"
+                className="transition-transform duration-300 group-hover:translate-x-1"
+              />
+            </span>
+            <motion.span
+              aria-hidden
+              className="absolute inset-y-0 z-0 w-1/3 -skew-x-12"
+              style={{
+                background:
+                  "linear-gradient(90deg, transparent, rgba(52,211,153,0.35), transparent)",
+              }}
+              animate={{ x: ["-160%", "360%"] }}
+              transition={{
+                duration: 2.4,
+                ease: "easeInOut",
+                repeat: Infinity,
+                repeatDelay: 1.6,
+              }}
+            />
           </Link>
           <Link
             href="#how-it-works"
